@@ -1,0 +1,101 @@
+{
+  "sensor": {
+    "name": "RED Komodo 6K Super 35",
+    "width_mm": 22.56,
+    "height_mm": 11.88,
+    "resolution_full": [6144, 3240],
+    "resolution_proxy": [2048, 1080]
+  },
+  "lenses": [
+    {
+      "lens_name": "Laowa 9mm Cine",
+      "full_name": "Venus Laowa 9mm T2.9 Zero-D Cine",
+      "focal_length_mm": 9.0,
+      "fov_h_deg": 102.8,
+      "fov_v_deg": 66.8,
+      "projection": "rectilinear",
+      "typical_distortion": {"k1": -0.005, "k2": 0.001}
+    },
+    {
+      "lens_name": "Laowa 12mm Cine",
+      "full_name": "Venus Laowa 12mm T2.9 Zero-D Cine",
+      "focal_length_mm": 12.0,
+      "fov_h_deg": 86.5,
+      "fov_v_deg": 52.7,
+      "projection": "rectilinear",
+      "typical_distortion": {"k1": -0.003, "k2": 0.0005}
+    },
+    {
+      "lens_name": "Laowa 14mm Zero-D",
+      "full_name": "Venus Laowa 14mm f/4 Zero-D",
+      "focal_length_mm": 14.0,
+      "fov_h_deg": 77.7,
+      "fov_v_deg": 46.0,
+      "projection": "rectilinear",
+      "typical_distortion": {"k1": -0.004, "k2": 0.001}
+    },
+    {
+      "lens_name": "Sigma 14mm Art",
+      "full_name": "Sigma 14mm f/1.8 DG HSM Art",
+      "focal_length_mm": 14.0,
+      "fov_h_deg": 77.7,
+      "fov_v_deg": 46.0,
+      "projection": "rectilinear",
+      "typical_distortion": {"k1": -0.02, "k2": 0.005}
+    },
+    {
+      "lens_name": "Canon 14mm L",
+      "full_name": "Canon EF 14mm f/2.8L II USM",
+      "focal_length_mm": 14.0,
+      "fov_h_deg": 77.7,
+      "fov_v_deg": 46.0,
+      "projection": "rectilinear",
+      "typical_distortion": {"k1": -0.025, "k2": 0.008}
+    },
+    {
+      "lens_name": "Samyang 14mm",
+      "full_name": "Samyang/Rokinon 14mm f/2.8 ED AS IF UMC",
+      "focal_length_mm": 14.0,
+      "fov_h_deg": 77.7,
+      "fov_v_deg": 46.0,
+      "projection": "rectilinear",
+      "typical_distortion": {"k1": -0.03, "k2": 0.01}
+    },
+    {
+      "lens_name": "Sigma 12-24mm at 12mm",
+      "full_name": "Sigma 12-24mm f/4 DG HSM Art (at 12mm)",
+      "focal_length_mm": 12.0,
+      "fov_h_deg": 86.5,
+      "fov_v_deg": 52.7,
+      "projection": "rectilinear",
+      "typical_distortion": {"k1": -0.02, "k2": 0.006}
+    },
+    {
+      "lens_name": "Irix 11mm",
+      "full_name": "Irix 11mm f/4 Blackstone",
+      "focal_length_mm": 11.0,
+      "fov_h_deg": 91.5,
+      "fov_v_deg": 56.7,
+      "projection": "rectilinear",
+      "typical_distortion": {"k1": -0.015, "k2": 0.004}
+    },
+    {
+      "lens_name": "Tokina 11-16mm at 11mm",
+      "full_name": "Tokina AT-X 11-16mm f/2.8 Pro DX II (at 11mm)",
+      "focal_length_mm": 11.0,
+      "fov_h_deg": 91.5,
+      "fov_v_deg": 56.7,
+      "projection": "rectilinear",
+      "typical_distortion": {"k1": -0.025, "k2": 0.008}
+    },
+    {
+      "lens_name": "SLR Magic 10mm",
+      "full_name": "SLR Magic 10mm T2.1 Hyperprime Cine",
+      "focal_length_mm": 10.0,
+      "fov_h_deg": 96.9,
+      "fov_v_deg": 61.4,
+      "projection": "rectilinear",
+      "typical_distortion": {"k1": -0.018, "k2": 0.005}
+    }
+  ]
+}

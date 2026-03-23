@@ -1,0 +1,5 @@
+.build/
+.claude/
+Roll02_Clip*/
+tools/.venv/
+.DS_Store

@@ -1,0 +1,174 @@
+{
+  "ptguiversion": "12.0",
+  "projectformat": 5,
+  "project": {
+    "outputsize": {
+      "w": 3840,
+      "h": 1920
+    },
+    "projection": "equirectangular",
+    "hfov": 360.0,
+    "vfov": 180.0
+  },
+  "imagegroups": [
+    {
+      "images": [
+        {
+          "filename": "A002_A002_0323OJ.jpg",
+          "width": 2048,
+          "height": 1080,
+          "include": true,
+          "lenstype": "rectilinear",
+          "hfov": 90.0,
+          "yaw": 0.0,
+          "pitch": -0.0,
+          "roll": 0.0,
+          "a": 0.0,
+          "b": 0.0,
+          "c": 0.0,
+          "d": 0,
+          "e": 0
+        },
+        {
+          "filename": "B002_B002_1217M0.jpg",
+          "width": 2048,
+          "height": 1080,
+          "include": true,
+          "lenstype": "rectilinear",
+          "hfov": 90.0,
+          "yaw": 60.0,
+          "pitch": -0.0,
+          "roll": 0.0,
+          "a": 0.0,
+          "b": 0.0,
+          "c": 0.0,
+          "d": 0,
+          "e": 0
+        },
+        {
+          "filename": "C002_C002_0323EC.jpg",
+          "width": 2048,
+          "height": 1080,
+          "include": true,
+          "lenstype": "rectilinear",
+          "hfov": 90.0,
+          "yaw": 120.0,
+          "pitch": -0.0,
+          "roll": 0.0,
+          "a": 0.0,
+          "b": 0.0,
+          "c": 0.0,
+          "d": 0,
+          "e": 0
+        },
+        {
+          "filename": "D002_D002_0709KG.jpg",
+          "width": 2048,
+          "height": 1080,
+          "include": true,
+          "lenstype": "rectilinear",
+          "hfov": 90.0,
+          "yaw": 180.0,
+          "pitch": -0.0,
+          "roll": 0.0,
+          "a": 0.0,
+          "b": 0.0,
+          "c": 0.0,
+          "d": 0,
+          "e": 0
+        },
+        {
+          "filename": "E002_E002_03234Y.jpg",
+          "width": 2048,
+          "height": 1080,
+          "include": true,
+          "lenstype": "rectilinear",
+          "hfov": 90.0,
+          "yaw": -120.0,
+          "pitch": -0.0,
+          "roll": 0.0,
+          "a": 0.0,
+          "b": 0.0,
+          "c": 0.0,
+          "d": 0,
+          "e": 0
+        },
+        {
+          "filename": "F002_F002_03231G.jpg",
+          "width": 2048,
+          "height": 1080,
+          "include": true,
+          "lenstype": "rectilinear",
+          "hfov": 90.0,
+          "yaw": -60.0,
+          "pitch": -0.0,
+          "roll": 0.0,
+          "a": 0.0,
+          "b": 0.0,
+          "c": 0.0,
+          "d": 0,
+          "e": 0
+        },
+        {
+          "filename": "G002_G002_0323H1.jpg",
+          "width": 2048,
+          "height": 1080,
+          "include": true,
+          "lenstype": "rectilinear",
+          "hfov": 90.0,
+          "yaw": 0.0,
+          "pitch": -70.0,
+          "roll": 0.0,
+          "a": 0.0,
+          "b": 0.0,
+          "c": 0.0,
+          "d": 0,
+          "e": 0
+        },
+        {
+          "filename": "H002_H002_0322KE.jpg",
+          "width": 2048,
+          "height": 1080,
+          "include": true,
+          "lenstype": "rectilinear",
+          "hfov": 90.0,
+          "yaw": 120.0,
+          "pitch": -70.0,
+          "roll": 0.0,
+          "a": 0.0,
+          "b": 0.0,
+          "c": 0.0,
+          "d": 0,
+          "e": 0
+        },
+        {
+          "filename": "J002_J002_03239I.jpg",
+          "width": 2048,
+          "height": 1080,
+          "include": true,
+          "lenstype": "rectilinear",
+          "hfov": 90.0,
+          "yaw": -120.0,
+          "pitch": -70.0,
+          "roll": 0.0,
+          "a": 0.0,
+          "b": 0.0,
+          "c": 0.0,
+          "d": 0,
+          "e": 0
+        }
+      ],
+      "lens": {
+        "lenstype": "rectilinear",
+        "hfov": 90.0,
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.0
+      },
+      "size": {
+        "w": 2048,
+        "h": 1080
+      }
+    }
+  ]
+}

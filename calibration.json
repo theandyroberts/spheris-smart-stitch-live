@@ -1,0 +1,201 @@
+{
+  "rig_name": "Spheris 9-Cam Ground Rig",
+  "created": "2026-03-23T16:50:45.152657+00:00",
+  "tool": "spheris-calibrate v0.1",
+  "output_projection": "equirectangular",
+  "output_size": [
+    3840,
+    1920
+  ],
+  "cameras": [
+    {
+      "id": "A",
+      "image_size": [
+        2048,
+        1080
+      ],
+      "projection": "rectilinear",
+      "focal_length_px": 1024.0,
+      "fov_h_deg": 90.0,
+      "yaw_deg": 0.0,
+      "pitch_deg": -0.0,
+      "roll_deg": 0.0,
+      "distortion": {
+        "k1": 0.0,
+        "k2": 0.0
+      },
+      "principal_point": [
+        1024.0,
+        540.0
+      ]
+    },
+    {
+      "id": "B",
+      "image_size": [
+        2048,
+        1080
+      ],
+      "projection": "rectilinear",
+      "focal_length_px": 1024.0,
+      "fov_h_deg": 90.0,
+      "yaw_deg": 60.0,
+      "pitch_deg": -0.0,
+      "roll_deg": 0.0,
+      "distortion": {
+        "k1": 0.0,
+        "k2": 0.0
+      },
+      "principal_point": [
+        1024.0,
+        540.0
+      ]
+    },
+    {
+      "id": "C",
+      "image_size": [
+        2048,
+        1080
+      ],
+      "projection": "rectilinear",
+      "focal_length_px": 1024.0,
+      "fov_h_deg": 90.0,
+      "yaw_deg": 120.0,
+      "pitch_deg": -0.0,
+      "roll_deg": 0.0,
+      "distortion": {
+        "k1": 0.0,
+        "k2": 0.0
+      },
+      "principal_point": [
+        1024.0,
+        540.0
+      ]
+    },
+    {
+      "id": "D",
+      "image_size": [
+        2048,
+        1080
+      ],
+      "projection": "rectilinear",
+      "focal_length_px": 1024.0,
+      "fov_h_deg": 90.0,
+      "yaw_deg": 180.0,
+      "pitch_deg": -0.0,
+      "roll_deg": 0.0,
+      "distortion": {
+        "k1": 0.0,
+        "k2": 0.0
+      },
+      "principal_point": [
+        1024.0,
+        540.0
+      ]
+    },
+    {
+      "id": "E",
+      "image_size": [
+        2048,
+        1080
+      ],
+      "projection": "rectilinear",
+      "focal_length_px": 1024.0,
+      "fov_h_deg": 90.0,
+      "yaw_deg": -120.0,
+      "pitch_deg": -0.0,
+      "roll_deg": 0.0,
+      "distortion": {
+        "k1": 0.0,
+        "k2": 0.0
+      },
+      "principal_point": [
+        1024.0,
+        540.0
+      ]
+    },
+    {
+      "id": "F",
+      "image_size": [
+        2048,
+        1080
+      ],
+      "projection": "rectilinear",
+      "focal_length_px": 1024.0,
+      "fov_h_deg": 90.0,
+      "yaw_deg": -60.0,
+      "pitch_deg": -0.0,
+      "roll_deg": 0.0,
+      "distortion": {
+        "k1": 0.0,
+        "k2": 0.0
+      },
+      "principal_point": [
+        1024.0,
+        540.0
+      ]
+    },
+    {
+      "id": "G",
+      "image_size": [
+        2048,
+        1080
+      ],
+      "projection": "rectilinear",
+      "focal_length_px": 1024.0,
+      "fov_h_deg": 90.0,
+      "yaw_deg": 0.0,
+      "pitch_deg": -70.0,
+      "roll_deg": 0.0,
+      "distortion": {
+        "k1": 0.0,
+        "k2": 0.0
+      },
+      "principal_point": [
+        1024.0,
+        540.0
+      ]
+    },
+    {
+      "id": "H",
+      "image_size": [
+        2048,
+        1080
+      ],
+      "projection": "rectilinear",
+      "focal_length_px": 1024.0,
+      "fov_h_deg": 90.0,
+      "yaw_deg": 120.0,
+      "pitch_deg": -70.0,
+      "roll_deg": 0.0,
+      "distortion": {
+        "k1": 0.0,
+        "k2": 0.0
+      },
+      "principal_point": [
+        1024.0,
+        540.0
+      ]
+    },
+    {
+      "id": "J",
+      "image_size": [
+        2048,
+        1080
+      ],
+      "projection": "rectilinear",
+      "focal_length_px": 1024.0,
+      "fov_h_deg": 90.0,
+      "yaw_deg": -120.0,
+      "pitch_deg": -70.0,
+      "roll_deg": 0.0,
+      "distortion": {
+        "k1": 0.0,
+        "k2": 0.0
+      },
+      "principal_point": [
+        1024.0,
+        540.0
+      ]
+    }
+  ]
+}
