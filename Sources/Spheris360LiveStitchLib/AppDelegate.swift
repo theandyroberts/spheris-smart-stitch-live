@@ -26,7 +26,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     private var scrubberTimer: Timer?
 
     // Calibration picker (grid window only)
-    private var calibPicker: NSPopUpButton?
+    private var calibButton: NSButton?
+    private var pickerPanel: CalibrationPickerPanel?
 
     override public init() { super.init() }
 
@@ -169,69 +170,56 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         print("Switched calibration: \(calibration.cameras.count) cameras, \(calibration.outputWidth)x\(calibration.outputHeight)")
     }
 
-    private func refreshCalibPicker() {
-        guard let picker = calibPicker, let library = calibLibrary else { return }
-        picker.removeAllItems()
-        let profiles = library.availableProfiles()
-        for p in profiles {
-            picker.addItem(withTitle: p.displayName)
-        }
-        picker.menu?.addItem(.separator())
-        picker.addItem(withTitle: "Rename...")
-
-        // Select the current profile
-        if let current = currentProfile {
-            let idx = profiles.firstIndex(where: { $0.url == current.url })
-            if let idx = idx { picker.selectItem(at: idx) }
-        }
+    private func updateCalibButton() {
+        calibButton?.title = currentProfile?.displayName ?? "No Calibration"
     }
 
-    @objc private func calibrationPicked(_ sender: NSPopUpButton) {
-        guard let library = calibLibrary else { return }
-        let profiles = library.availableProfiles()
-        let idx = sender.indexOfSelectedItem
-
-        // "Rename..." is after the separator (last item)
-        if idx == sender.numberOfItems - 1 {
-            renameCurrentCalibration()
-            refreshCalibPicker()
-            return
-        }
-
-        guard idx >= 0, idx < profiles.count else { return }
-        let selected = profiles[idx]
-        guard let calibration = try? library.load(selected) else {
-            print("Failed to load calibration: \(selected.displayName)")
-            return
-        }
-        library.setLastUsed(selected)
-        self.currentProfile = selected
-        applyCalibration(calibration)
-    }
-
-    private func renameCurrentCalibration() {
-        guard let library = calibLibrary, let profile = currentProfile else { return }
-        let alert = NSAlert()
-        alert.messageText = "Rename Calibration"
-        alert.informativeText = "Enter a new name for this calibration profile:"
-        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
-        input.stringValue = profile.displayName
-        alert.accessoryView = input
-        alert.addButton(withTitle: "Rename")
-        alert.addButton(withTitle: "Cancel")
-        alert.window.initialFirstResponder = input
-
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-        let newName = input.stringValue.trimmingCharacters(in: .whitespaces)
-        guard !newName.isEmpty, newName != profile.displayName else { return }
-
-        do {
-            let updated = try library.rename(profile, to: newName)
-            self.currentProfile = updated
-            print("Renamed calibration to: \(updated.displayName)")
-        } catch {
-            print("Failed to rename: \(error)")
-        }
+    @objc private func openCalibrationLibrary() {
+        guard let library = calibLibrary, let window = gridWindow else { return }
+        let panel = CalibrationPickerPanel(
+            library: library,
+            currentProfile: currentProfile,
+            onSelect: { [weak self] profile in
+                guard let self = self else { return }
+                guard let calibration = try? library.load(profile) else {
+                    print("Failed to load calibration: \(profile.displayName)")
+                    return
+                }
+                library.setLastUsed(profile)
+                self.currentProfile = profile
+                self.updateCalibButton()
+                self.applyCalibration(calibration)
+            },
+            onRename: { [weak self] profile in
+                let alert = NSAlert()
+                alert.messageText = "Rename Calibration"
+                alert.informativeText = "Enter a new name:"
+                let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
+                input.stringValue = profile.displayName
+                alert.accessoryView = input
+                alert.addButton(withTitle: "Rename")
+                alert.addButton(withTitle: "Cancel")
+                alert.window.initialFirstResponder = input
+                guard alert.runModal() == .alertFirstButtonReturn else { return nil }
+                let newName = input.stringValue.trimmingCharacters(in: .whitespaces)
+                guard !newName.isEmpty, newName != profile.displayName else { return nil }
+                do {
+                    let updated = try library.rename(profile, to: newName)
+                    if self?.currentProfile?.url == profile.url {
+                        self?.currentProfile = updated
+                        self?.updateCalibButton()
+                    }
+                    return updated
+                } catch {
+                    print("Failed to rename: \(error)")
+                    return nil
+                }
+            }
+        )
+        panel.center()
+        window.addChildWindow(panel, ordered: .above)
+        panel.makeKeyAndOrderFront(nil)
+        self.pickerPanel = panel
     }
 
     // MARK: - Control bars
@@ -241,14 +229,17 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         let bar = NSView(frame: NSRect(x: 0, y: 0, width: width, height: 36))
         bar.autoresizingMask = [.width]
 
-        // Calibration picker
-        let picker = NSPopUpButton(frame: NSRect(x: 4, y: 4, width: 240, height: 28))
-        picker.target = self
-        picker.action = #selector(calibrationPicked(_:))
-        picker.autoresizingMask = []
-        bar.addSubview(picker)
-        self.calibPicker = picker
-        refreshCalibPicker()
+        // Calibration library button
+        let calibBtn = NSButton(frame: NSRect(x: 4, y: 4, width: 240, height: 28))
+        calibBtn.bezelStyle = .rounded
+        calibBtn.title = currentProfile?.displayName ?? "No Calibration"
+        calibBtn.alignment = .left
+        calibBtn.lineBreakMode = .byTruncatingTail
+        calibBtn.font = .systemFont(ofSize: 11)
+        calibBtn.target = self
+        calibBtn.action = #selector(openCalibrationLibrary)
+        bar.addSubview(calibBtn)
+        self.calibButton = calibBtn
 
         let playBtn = NSButton(frame: NSRect(x: 248, y: 4, width: 28, height: 28))
         playBtn.bezelStyle = .regularSquare

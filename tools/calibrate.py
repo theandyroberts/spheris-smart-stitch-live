@@ -724,8 +724,14 @@ def main():
         h_name = sanitize(horiz_lens["lens_name"])
         s_name = sanitize(sky_lens["lens_name"])
         date_str = datetime.now().strftime("%Y-%m-%d")
-        auto_filename = f"{h_name}-{s_name}_{date_str}_{args.quality}.json"
-        args.output = os.path.join(args.library_dir, auto_filename)
+        base = f"{h_name}-{s_name}_{date_str}_{args.quality}"
+        # Avoid overwriting existing files: append _1, _2, etc.
+        candidate = os.path.join(args.library_dir, f"{base}.json")
+        seq = 1
+        while os.path.exists(candidate):
+            candidate = os.path.join(args.library_dir, f"{base}_{seq}.json")
+            seq += 1
+        args.output = candidate
 
     log.info("═══ Spheris 360 Auto-Calibration ═══")
     log.info(f"Input: {args.input}")
