@@ -13,11 +13,20 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     private var stitchView: StitchDisplayView?
     private var router: VideoInputRouter?
 
+    // Calibration
+    private var metalDevice: MTLDevice?
+    private var remapGen: RemapGenerator?
+    private var calibLibrary: CalibrationLibrary?
+    private var currentProfile: CalibrationProfile?
+
     // Scrubber controls (both windows)
     private var scrubbers: [NSSlider] = []
     private var playPauseButtons: [NSButton] = []
     private var timeLabels: [NSTextField] = []
     private var scrubberTimer: Timer?
+
+    // Calibration picker (grid window only)
+    private var calibPicker: NSPopUpButton?
 
     override public init() { super.init() }
 
@@ -27,27 +36,33 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         guard let device = MTLCreateSystemDefaultDevice() else {
             fatalError("Metal is not supported")
         }
+        self.metalDevice = device
+        self.remapGen = RemapGenerator(device: device)
 
-        // ── Load calibration ──
+        // ── Set up calibration library ──
         let projectDir = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Projects/spheris-smart-stitch")
-        let calibURL = projectDir.appendingPathComponent("config/calibration.json")
+        let library = CalibrationLibrary(projectDir: projectDir)
+        library.migrateIfNeeded()
+        self.calibLibrary = library
 
-        guard let calibration = try? CalibrationData.load(from: calibURL) else {
-            fatalError("Failed to load calibration from \(calibURL.path)")
+        // Load last-used or newest profile
+        let profile = library.lastUsedProfile() ?? library.availableProfiles().first
+        guard let profile = profile,
+              let calibration = try? library.load(profile) else {
+            fatalError("No calibration profiles found in config/library/")
         }
-        print("Loaded calibration: \(calibration.cameras.count) cameras, output \(calibration.outputWidth)x\(calibration.outputHeight)")
+        library.setLastUsed(profile)
+        self.currentProfile = profile
+        print("Loaded calibration: \(profile.displayName) (\(calibration.cameras.count) cameras, \(calibration.outputWidth)x\(calibration.outputHeight))")
 
         // ── Generate remap LUT ──
-        let remapGen = RemapGenerator(device: device)
-        let remapTexture = remapGen.generate(
+        let remapTexture = remapGen!.generate(
             calibration: calibration,
             gridSlotCameraIDs: gridSlotCameraIDs,
             outputWidth: calibration.outputWidth,
             outputHeight: calibration.outputHeight
         )
-
-        // ── Compute camera label positions in equirectangular for stitch overlay ──
         let labelPositions = computeStitchLabelPositions(calibration: calibration)
 
         // ── Window 1: 3x3 Grid with scrubber ──
@@ -60,7 +75,6 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         gridWin.title = "Spheris 360 — Camera Grid"
         gridWin.minSize = NSSize(width: 720, height: 445)
 
-        // Grid view + scrubber in a stack
         let containerView = NSView(frame: gridRect)
         let gv = GridDisplayView(
             frame: NSRect(x: 0, y: 40, width: gridRect.width, height: gridRect.height - 40),
@@ -69,7 +83,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         gv.autoresizingMask = [.width, .height]
         containerView.addSubview(gv)
 
-        let controlBar = makeControlBar(width: gridRect.width)
+        let controlBar = makeGridControlBar(width: gridRect.width)
         containerView.addSubview(controlBar)
 
         gridWin.contentView = containerView
@@ -86,7 +100,6 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         stitchWin.title = "Spheris 360 — Live Stitch"
         stitchWin.minSize = NSSize(width: 640, height: 320)
 
-        // Stitch view + scrubber in a stack
         let stitchContainer = NSView(frame: stitchRect)
         let sv = StitchDisplayView(
             frame: NSRect(x: 0, y: 40, width: stitchRect.width, height: stitchRect.height - 40),
@@ -97,7 +110,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         sv.autoresizingMask = [.width, .height]
         stitchContainer.addSubview(sv)
 
-        let stitchControlBar = makeControlBar(width: stitchRect.width)
+        let stitchControlBar = makePlaybackControlBar(width: stitchRect.width)
         stitchContainer.addSubview(stitchControlBar)
 
         stitchWin.contentView = stitchContainer
@@ -141,9 +154,140 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    // MARK: - Scrubber controls
+    // MARK: - Calibration switching
 
-    private func makeControlBar(width: CGFloat) -> NSView {
+    private func applyCalibration(_ calibration: CalibrationData) {
+        guard let remapGen = remapGen else { return }
+        let remapTexture = remapGen.generate(
+            calibration: calibration,
+            gridSlotCameraIDs: gridSlotCameraIDs,
+            outputWidth: calibration.outputWidth,
+            outputHeight: calibration.outputHeight
+        )
+        let labelPositions = computeStitchLabelPositions(calibration: calibration)
+        stitchView?.updateCalibration(remapTexture: remapTexture, cameraLabels: labelPositions)
+        print("Switched calibration: \(calibration.cameras.count) cameras, \(calibration.outputWidth)x\(calibration.outputHeight)")
+    }
+
+    private func refreshCalibPicker() {
+        guard let picker = calibPicker, let library = calibLibrary else { return }
+        picker.removeAllItems()
+        let profiles = library.availableProfiles()
+        for p in profiles {
+            picker.addItem(withTitle: p.displayName)
+        }
+        picker.menu?.addItem(.separator())
+        picker.addItem(withTitle: "Rename...")
+
+        // Select the current profile
+        if let current = currentProfile {
+            let idx = profiles.firstIndex(where: { $0.url == current.url })
+            if let idx = idx { picker.selectItem(at: idx) }
+        }
+    }
+
+    @objc private func calibrationPicked(_ sender: NSPopUpButton) {
+        guard let library = calibLibrary else { return }
+        let profiles = library.availableProfiles()
+        let idx = sender.indexOfSelectedItem
+
+        // "Rename..." is after the separator (last item)
+        if idx == sender.numberOfItems - 1 {
+            renameCurrentCalibration()
+            refreshCalibPicker()
+            return
+        }
+
+        guard idx >= 0, idx < profiles.count else { return }
+        let selected = profiles[idx]
+        guard let calibration = try? library.load(selected) else {
+            print("Failed to load calibration: \(selected.displayName)")
+            return
+        }
+        library.setLastUsed(selected)
+        self.currentProfile = selected
+        applyCalibration(calibration)
+    }
+
+    private func renameCurrentCalibration() {
+        guard let library = calibLibrary, let profile = currentProfile else { return }
+        let alert = NSAlert()
+        alert.messageText = "Rename Calibration"
+        alert.informativeText = "Enter a new name for this calibration profile:"
+        let input = NSTextField(frame: NSRect(x: 0, y: 0, width: 300, height: 24))
+        input.stringValue = profile.displayName
+        alert.accessoryView = input
+        alert.addButton(withTitle: "Rename")
+        alert.addButton(withTitle: "Cancel")
+        alert.window.initialFirstResponder = input
+
+        guard alert.runModal() == .alertFirstButtonReturn else { return }
+        let newName = input.stringValue.trimmingCharacters(in: .whitespaces)
+        guard !newName.isEmpty, newName != profile.displayName else { return }
+
+        do {
+            let updated = try library.rename(profile, to: newName)
+            self.currentProfile = updated
+            print("Renamed calibration to: \(updated.displayName)")
+        } catch {
+            print("Failed to rename: \(error)")
+        }
+    }
+
+    // MARK: - Control bars
+
+    /// Grid window control bar: play/pause + calibration picker + scrubber + time
+    private func makeGridControlBar(width: CGFloat) -> NSView {
+        let bar = NSView(frame: NSRect(x: 0, y: 0, width: width, height: 36))
+        bar.autoresizingMask = [.width]
+
+        let playBtn = NSButton(frame: NSRect(x: 4, y: 4, width: 28, height: 28))
+        playBtn.bezelStyle = .regularSquare
+        playBtn.title = "⏸"
+        playBtn.font = .systemFont(ofSize: 14)
+        playBtn.target = self
+        playBtn.action = #selector(togglePlayPause)
+        bar.addSubview(playBtn)
+        playPauseButtons.append(playBtn)
+
+        // Calibration picker
+        let picker = NSPopUpButton(frame: NSRect(x: 36, y: 4, width: 240, height: 28))
+        picker.target = self
+        picker.action = #selector(calibrationPicked(_:))
+        picker.autoresizingMask = []
+        bar.addSubview(picker)
+        self.calibPicker = picker
+        refreshCalibPicker()
+
+        let sliderX: CGFloat = 280
+        let slider = NSSlider(frame: NSRect(x: sliderX, y: 8, width: width - sliderX - 94, height: 20))
+        slider.minValue = 0
+        slider.maxValue = 1
+        slider.doubleValue = 0
+        slider.isContinuous = true
+        slider.target = self
+        slider.action = #selector(scrubberChanged(_:))
+        slider.autoresizingMask = [.width]
+        bar.addSubview(slider)
+        scrubbers.append(slider)
+
+        let label = NSTextField(frame: NSRect(x: width - 90, y: 8, width: 86, height: 20))
+        label.isEditable = false
+        label.isBordered = false
+        label.backgroundColor = .clear
+        label.textColor = .secondaryLabelColor
+        label.font = .monospacedDigitSystemFont(ofSize: 12, weight: .regular)
+        label.stringValue = "00:00 / 00:00"
+        label.alignment = .right
+        label.autoresizingMask = [.minXMargin]
+        bar.addSubview(label)
+        timeLabels.append(label)
+
+        return bar
+    }
+
+    /// Stitch window control bar: play/pause + scrubber + time (no picker)
+    private func makePlaybackControlBar(width: CGFloat) -> NSView {
         let bar = NSView(frame: NSRect(x: 0, y: 0, width: width, height: 36))
         bar.autoresizingMask = [.width]
 
@@ -182,6 +326,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         return bar
     }
 
+    // MARK: - Playback controls
+
     @objc private func togglePlayPause() {
         guard let router = router else { return }
         router.togglePause()
@@ -192,7 +338,6 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     @objc private func scrubberChanged(_ sender: NSSlider) {
         guard let router = router else { return }
         router.seek(toFraction: sender.doubleValue)
-        // Sync all scrubbers and buttons
         for s in scrubbers where s !== sender { s.doubleValue = sender.doubleValue }
         playPauseButtons.forEach { $0.title = "▶" }
         updateTimeLabels()
@@ -222,20 +367,16 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Camera label positions for stitch overlay
 
     private func computeStitchLabelPositions(calibration: CalibrationData) -> [(String, Float, Float)] {
-        // For each camera, project its center direction to equirectangular UV
         var labels: [(String, Float, Float)] = []
-        for (slotIndex, cameraID) in gridSlotCameraIDs.enumerated() {
+        for (_, cameraID) in gridSlotCameraIDs.enumerated() {
             guard let cam = calibration.camera(forID: cameraID) else { continue }
             let R = cam.rotationMatrix
-            // Camera forward direction (Z-axis) in world space
             let forward = R * SIMD3<Float>(0, 0, 1)
-            // Sphere → equirectangular
             let lon = atan2(forward.x, forward.z)
             let lat = asin(min(1, max(-1, forward.y)))
             let u = (lon + .pi) / (2 * .pi)
             let v: Float
             if cam.group == "horizontal" {
-                // Pin horizontal labels near the bottom of the frame
                 v = 0.85
             } else {
                 v = (lat + .pi / 2) / .pi

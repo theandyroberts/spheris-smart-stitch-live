@@ -90,6 +90,18 @@ public final class StitchDisplayView: MTKView, @unchecked Sendable {
         buildLabels(cameraLabels, device: device)
     }
 
+    // MARK: - Runtime calibration swap
+
+    /// Hot-swap the remap LUT and camera labels without recreating the view.
+    public func updateCalibration(remapTexture: MTLTexture, cameraLabels: [(String, Float, Float)]) {
+        self.remapTexture = remapTexture
+        labelTextures.removeAll()
+        overlayVertexBuffer = nil
+        if let device = self.device {
+            buildLabels(cameraLabels, device: device)
+        }
+    }
+
     // MARK: - Label rendering
 
     private func buildLabels(_ labels: [(String, Float, Float)], device: MTLDevice) {

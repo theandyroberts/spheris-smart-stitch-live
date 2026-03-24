@@ -667,7 +667,8 @@ def generate_preview_stitch(cameras_refined, images, output_dir, quality="full")
 def main():
     parser = argparse.ArgumentParser(description="Spheris 360 Auto-Calibration")
     parser.add_argument("--input", help="Directory with 9 camera frames or MOVs")
-    parser.add_argument("--output", default="config/calibration.json", help="Output calibration JSON")
+    parser.add_argument("--output", default=None, help="Output calibration JSON (auto-named into config/library/ if omitted)")
+    parser.add_argument("--library-dir", default="config/library", help="Library directory for auto-named outputs")
     parser.add_argument("--lens-horizontal", default="Laowa 12mm Cine", help="Lens name for horizontal cameras")
     parser.add_argument("--lens-upward", default="Laowa 9mm Cine", help="Lens name for upward cameras")
     parser.add_argument("--custom-lens-horizontal", help="Custom lens as 'focal_mm,fov_h_deg'")
@@ -715,6 +716,17 @@ def main():
     horiz_lens = resolve_lens(args.lens_horizontal, args.custom_lens_horizontal, "horizontal")
     sky_lens = resolve_lens(args.lens_upward, args.custom_lens_upward, "upward")
 
+    # Auto-generate output path if not specified
+    if args.output is None:
+        os.makedirs(args.library_dir, exist_ok=True)
+        def sanitize(name):
+            return name.replace(" ", "").replace("/", "-")
+        h_name = sanitize(horiz_lens["lens_name"])
+        s_name = sanitize(sky_lens["lens_name"])
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        auto_filename = f"{h_name}-{s_name}_{date_str}_{args.quality}.json"
+        args.output = os.path.join(args.library_dir, auto_filename)
+
     log.info("═══ Spheris 360 Auto-Calibration ═══")
     log.info(f"Input: {args.input}")
     log.info(f"Output: {args.output}")
@@ -753,6 +765,14 @@ def main():
     write_calibration_json(cameras_refined, images, image_filenames,
                            horiz_lens, sky_lens, args.output)
     write_ptgui_pts(cameras_refined, images, image_filenames, args.output)
+
+    # Copy to legacy config/calibration.json as current default
+    legacy_path = os.path.join(os.path.dirname(args.library_dir), "calibration.json")
+    try:
+        shutil.copy2(args.output, legacy_path)
+        log.info(f"Also copied to {legacy_path}")
+    except Exception as e:
+        log.warning(f"Could not copy to legacy path: {e}")
 
     # Step 7: Preview
     if not args.no_preview:
