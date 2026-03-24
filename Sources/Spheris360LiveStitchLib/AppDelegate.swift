@@ -241,7 +241,16 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         let bar = NSView(frame: NSRect(x: 0, y: 0, width: width, height: 36))
         bar.autoresizingMask = [.width]
 
-        let playBtn = NSButton(frame: NSRect(x: 4, y: 4, width: 28, height: 28))
+        // Calibration picker
+        let picker = NSPopUpButton(frame: NSRect(x: 4, y: 4, width: 240, height: 28))
+        picker.target = self
+        picker.action = #selector(calibrationPicked(_:))
+        picker.autoresizingMask = []
+        bar.addSubview(picker)
+        self.calibPicker = picker
+        refreshCalibPicker()
+
+        let playBtn = NSButton(frame: NSRect(x: 248, y: 4, width: 28, height: 28))
         playBtn.bezelStyle = .regularSquare
         playBtn.title = "⏸"
         playBtn.font = .systemFont(ofSize: 14)
@@ -249,15 +258,6 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         playBtn.action = #selector(togglePlayPause)
         bar.addSubview(playBtn)
         playPauseButtons.append(playBtn)
-
-        // Calibration picker
-        let picker = NSPopUpButton(frame: NSRect(x: 36, y: 4, width: 240, height: 28))
-        picker.target = self
-        picker.action = #selector(calibrationPicked(_:))
-        picker.autoresizingMask = []
-        bar.addSubview(picker)
-        self.calibPicker = picker
-        refreshCalibPicker()
 
         let sliderX: CGFloat = 280
         let slider = NSSlider(frame: NSRect(x: sliderX, y: 8, width: width - sliderX - 94, height: 20))
