@@ -25,8 +25,124 @@ public struct CalibrationData: Codable {
     }
 
     public static func load(from url: URL) throws -> CalibrationData {
+        if url.pathExtension.lowercased() == "pts" {
+            return try loadFromPTS(url: url)
+        }
         let data = try Data(contentsOf: url)
         return try JSONDecoder().decode(CalibrationData.self, from: data)
+    }
+
+    // MARK: - PTGui .pts import
+
+    /// Default sensor dimensions (RED Komodo 6K S35 in 2K mode)
+    private static let defaultSensorWidthMM = 22.56
+
+    /// Load calibration from a PTGui .pts project file (JSON format).
+    public static func loadFromPTS(url: URL) throws -> CalibrationData {
+        let data = try Data(contentsOf: url)
+        guard let root = try JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let project = root["project"] as? [String: Any],
+              let outputSize = project["outputsize"] as? [String: Any],
+              let outW = outputSize["w"] as? Int,
+              let outH = outputSize["h"] as? Int,
+              let imageGroups = root["imagegroups"] as? [[String: Any]]
+        else {
+            throw PTSError.invalidFormat
+        }
+
+        // Collect all images from all image groups
+        var cameras: [CameraCalibration] = []
+        for group in imageGroups {
+            guard let images = group["images"] as? [[String: Any]] else { continue }
+            for img in images {
+                guard let filename = img["filename"] as? String,
+                      let width = img["width"] as? Int,
+                      let height = img["height"] as? Int,
+                      let hfov = img["hfov"] as? Double,
+                      let yaw = img["yaw"] as? Double,
+                      let pitch = img["pitch"] as? Double,
+                      let roll = img["roll"] as? Double
+                else { continue }
+
+                // Skip excluded images
+                if let include = img["include"] as? Bool, !include { continue }
+
+                let lenstype = img["lenstype"] as? String ?? "rectilinear"
+
+                // Derive camera ID from first letter of filename
+                let id = String(filename.prefix(1)).uppercased()
+
+                // Compute focal length in pixels from hfov
+                let hfovRad = hfov * .pi / 180.0
+                let focalPx = Double(width) / (2.0 * tan(hfovRad / 2.0))
+
+                // Compute focal length in mm (assume RED Komodo sensor)
+                let focalMm = focalPx * defaultSensorWidthMM / Double(width)
+
+                // Vertical FOV
+                let vfov = 2.0 * atan(Double(height) / (2.0 * focalPx)) * 180.0 / .pi
+
+                // Infer group from pitch
+                let camGroup = abs(pitch) > 30.0 ? "upward" : "horizontal"
+
+                // Lens name from focal length
+                let lensName = String(format: "%.0fmm %@", focalMm, lenstype)
+
+                // PTGui a/b/c distortion → approximate k1/k2
+                // PTGui model: r' = a*r^4 + b*r^3 + c*r^2 + (1-a-b-c)*r
+                // Our model: r' = r * (1 + k1*r^2 + k2*r^4)
+                // When a=b=c=0, both are identity. For small values, c ≈ k1.
+                let ptsB = img["b"] as? Double ?? 0.0
+                let ptsC = img["c"] as? Double ?? 0.0
+                let k1 = ptsC + ptsB  // rough approximation
+                let k2 = img["a"] as? Double ?? 0.0
+
+                // Image file: strip extension
+                let imageFile = (filename as NSString).deletingPathExtension
+
+                let cam = CameraCalibration(
+                    id: id,
+                    imageFile: imageFile,
+                    group: camGroup,
+                    lens: lensName,
+                    imageSize: [width, height],
+                    projection: lenstype,
+                    focalLengthPx: round(focalPx * 100) / 100,
+                    focalLengthMm: round(focalMm * 10) / 10,
+                    fovHDeg: round(hfov * 100) / 100,
+                    fovVDeg: round(vfov * 100) / 100,
+                    yawDeg: yaw,
+                    pitchDeg: pitch,
+                    rollDeg: roll,
+                    distortion: DistortionParams(k1: k1, k2: k2),
+                    principalPoint: [Double(width) / 2.0, Double(height) / 2.0]
+                )
+                cameras.append(cam)
+            }
+        }
+
+        guard !cameras.isEmpty else {
+            throw PTSError.noCameras
+        }
+
+        return CalibrationData(
+            rigName: "PTGui Import",
+            created: ISO8601DateFormatter().string(from: Date()),
+            outputProjection: "equirectangular",
+            outputSize: [outW, outH],
+            cameras: cameras
+        )
+    }
+
+    enum PTSError: Error, LocalizedError {
+        case invalidFormat
+        case noCameras
+        var errorDescription: String? {
+            switch self {
+            case .invalidFormat: return "Invalid PTGui .pts file format"
+            case .noCameras: return "No camera images found in .pts file"
+            }
+        }
     }
 }
 

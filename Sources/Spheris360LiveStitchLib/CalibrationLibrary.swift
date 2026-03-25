@@ -36,11 +36,26 @@ public final class CalibrationLibrary {
     }
 
     /// All profiles sorted newest-first by created date.
+    /// Prefers .json when both .json and .pts exist with the same stem.
     public func availableProfiles() -> [CalibrationProfile] {
         let fm = FileManager.default
         guard let files = try? fm.contentsOfDirectory(atPath: libraryDir.path) else { return [] }
+
+        // Collect json and pts filenames separately
+        let jsonFiles = Set(files.filter { $0.lowercased().hasSuffix(".json") })
+        let jsonStems = Set(jsonFiles.map { ($0 as NSString).deletingPathExtension })
+
+        var calibFiles: [String] = Array(jsonFiles)
+        // Only include .pts files that don't have a matching .json
+        for file in files where file.lowercased().hasSuffix(".pts") {
+            let stem = (file as NSString).deletingPathExtension
+            if !jsonStems.contains(stem) {
+                calibFiles.append(file)
+            }
+        }
+
         var profiles: [CalibrationProfile] = []
-        for file in files where file.hasSuffix(".json") {
+        for file in calibFiles {
             let url = libraryDir.appendingPathComponent(file)
             let meta = readMetadata(from: url)
             profiles.append(CalibrationProfile(
@@ -106,14 +121,36 @@ public final class CalibrationLibrary {
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { return Metadata(created: "", lensInfo: "") }
 
-        let created = json["created"] as? String ?? ""
-        var lenses: Set<String> = []
-        if let cameras = json["cameras"] as? [[String: Any]] {
-            for cam in cameras {
-                if let lens = cam["lens"] as? String { lenses.insert(lens) }
+        // Native .json format
+        if url.pathExtension.lowercased() == "json" {
+            let created = json["created"] as? String ?? ""
+            var lenses: Set<String> = []
+            if let cameras = json["cameras"] as? [[String: Any]] {
+                for cam in cameras {
+                    if let lens = cam["lens"] as? String { lenses.insert(lens) }
+                }
+            }
+            return Metadata(created: created, lensInfo: lenses.sorted().joined(separator: " + "))
+        }
+
+        // PTGui .pts format
+        var hfovs: Set<String> = []
+        if let groups = json["imagegroups"] as? [[String: Any]] {
+            for group in groups {
+                if let images = group["images"] as? [[String: Any]] {
+                    for img in images {
+                        if let hfov = img["hfov"] as? Double {
+                            hfovs.insert(String(format: "%.0f° hFOV", hfov))
+                        }
+                    }
+                }
             }
         }
-        return Metadata(created: created, lensInfo: lenses.sorted().joined(separator: " + "))
+        // Use file modification date as created
+        let attrs = try? FileManager.default.attributesOfItem(atPath: url.path)
+        let modDate = attrs?[.modificationDate] as? Date ?? Date()
+        let created = ISO8601DateFormatter().string(from: modDate)
+        return Metadata(created: created, lensInfo: "PTGui: " + hfovs.sorted().joined(separator: " + "))
     }
 
     private func makeNameFromLegacy() -> String? {
