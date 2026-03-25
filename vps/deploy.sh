@@ -1,6 +1,7 @@
 #!/bin/bash
 # Deploy Spheris Stream Server to VPS
 # Run from local machine: bash vps/deploy.sh
+# Or copy files manually and run commands on the VPS (see below).
 
 set -e
 VPS="root@stream.sparkpoint.studio"
@@ -13,20 +14,20 @@ ssh $VPS "apt update -qq && apt install -y -qq libnginx-mod-rtmp python3-venv py
 
 # 2. Create directories
 echo "--- Setting up directories ---"
-ssh $VPS "mkdir -p /opt/spheris-stream /var/www/hls /var/www/spheris-data && chown -R www-data:www-data /var/www/hls /var/www/spheris-data"
+ssh $VPS "mkdir -p /var/www/stream/app /var/www/stream/hls /var/www/stream/data && chown -R www-data:www-data /var/www/stream"
 
 # 3. Upload files
 echo "--- Uploading files ---"
-scp vps/app.py $VPS:/opt/spheris-stream/app.py
+scp vps/app.py $VPS:/var/www/stream/app/app.py
 scp vps/nginx.conf $VPS:/etc/nginx/nginx.conf
 scp vps/spheris-stream.service $VPS:/etc/systemd/system/spheris-stream.service
 
 # 4. Set up Python venv and install Flask + gunicorn
 echo "--- Setting up Python environment ---"
-ssh $VPS "cd /opt/spheris-stream && python3 -m venv venv && venv/bin/pip install -q flask gunicorn"
+ssh $VPS "cd /var/www/stream/app && python3 -m venv venv && venv/bin/pip install -q flask gunicorn"
 
 # 5. Set permissions
-ssh $VPS "chown -R www-data:www-data /opt/spheris-stream"
+ssh $VPS "chown -R www-data:www-data /var/www/stream"
 
 # 6. Enable and start services
 echo "--- Starting services ---"
@@ -44,8 +45,13 @@ ssh $VPS "systemctl is-active spheris-stream"
 
 echo ""
 echo "=== Deployment complete ==="
+echo ""
+echo "VPS layout:"
+echo "  /var/www/stream/"
+echo "    app/          ← Flask app + Python venv"
+echo "    hls/          ← nginx-rtmp video chunks (auto-managed)"
+echo "    data/         ← shoot config, sessions, feedback"
+echo ""
 echo "Stream URL:  rtmp://stream.sparkpoint.studio/live/spheris"
 echo "Watch URL:   https://stream.sparkpoint.studio/"
 echo "Admin API:   https://stream.sparkpoint.studio/api/admin/sessions"
-echo ""
-echo "Update the Mac app RTMP URL to: rtmp://stream.sparkpoint.studio/live/spheris"

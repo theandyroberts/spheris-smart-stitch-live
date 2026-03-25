@@ -22,7 +22,7 @@ app.secret_key = secrets.token_hex(32)
 
 # ── Config ──────────────────────────────────────────────────────────────────
 
-DATA_DIR = Path("/var/www/spheris-data")
+DATA_DIR = Path("/var/www/stream/data")
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 SHOOT_FILE = DATA_DIR / "shoot.json"
