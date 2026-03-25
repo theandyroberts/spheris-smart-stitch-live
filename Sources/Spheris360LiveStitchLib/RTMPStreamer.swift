@@ -33,14 +33,19 @@ public final class RTMPStreamer: @unchecked Sendable {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: ffmpeg)
         proc.arguments = [
-            // Input: raw BGRA from stdin
+            // Input 0: raw BGRA video from stdin
             "-f", "rawvideo",
             "-pixel_format", "bgra",
             "-video_size", "\(settings.streamWidth)x\(settings.streamHeight)",
             "-framerate", "\(settings.streamFPS)",
             "-i", "pipe:0",
-            // H.264 encoding
+            // Input 1: silent audio (prevents nginx-rtmp ghost audio)
+            "-f", "lavfi",
+            "-i", "anullsrc=r=44100:cl=mono",
+            // H.264 encoding — Baseline profile for max browser compat
             "-c:v", "libx264",
+            "-profile:v", "baseline",
+            "-level", "3.1",
             "-preset", "ultrafast",
             "-tune", "zerolatency",
             "-b:v", settings.videoBitrate,
@@ -48,6 +53,10 @@ public final class RTMPStreamer: @unchecked Sendable {
             "-bufsize", "\(Int((Double(settings.videoBitrate.dropLast()) ?? 2500) * 2))k",
             "-pix_fmt", "yuv420p",
             "-g", "\(settings.streamFPS * 2)",  // keyframe every 2 seconds
+            // AAC silent audio
+            "-c:a", "aac",
+            "-b:a", "32k",
+            "-shortest",
             // Output: RTMP with FLV container
             "-f", "flv",
             settings.rtmpURL,
