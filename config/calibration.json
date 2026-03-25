@@ -1,6 +1,6 @@
 {
   "rig_name": "Spheris 9-Cam Ground Rig",
-  "created": "2026-03-23T18:18:31.482641+00:00",
+  "created": "2026-03-24T23:53:54.093934+00:00",
   "tool": "spheris-calibrate v0.2",
   "sensor": {
     "width_mm": 22.56,
@@ -26,12 +26,15 @@
       "focal_length_mm": 12.0,
       "fov_h_deg": 86.46,
       "fov_v_deg": 52.74,
-      "yaw_deg": -81.7092,
-      "pitch_deg": 10.0628,
-      "roll_deg": -0.7055,
+      "yaw_deg": -100.5289,
+      "pitch_deg": -17.7594,
+      "roll_deg": 1.8784,
       "distortion": {
-        "k1": -0.003,
-        "k2": 0.0005
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.0,
+        "d": 0.0,
+        "e": 0.0
       },
       "principal_point": [
         1024.0,
@@ -52,12 +55,15 @@
       "focal_length_mm": 12.0,
       "fov_h_deg": 86.46,
       "fov_v_deg": 52.74,
-      "yaw_deg": -27.098,
-      "pitch_deg": 7.9326,
-      "roll_deg": 0.1503,
+      "yaw_deg": -41.269,
+      "pitch_deg": -18.1662,
+      "roll_deg": -7.5784,
       "distortion": {
-        "k1": -0.003,
-        "k2": 0.0005
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.0,
+        "d": 0.0,
+        "e": 0.0
       },
       "principal_point": [
         1024.0,
@@ -78,12 +84,15 @@
       "focal_length_mm": 12.0,
       "fov_h_deg": 86.46,
       "fov_v_deg": 52.74,
-      "yaw_deg": 26.1888,
-      "pitch_deg": 10.5128,
-      "roll_deg": -1.1165,
+      "yaw_deg": 15.8783,
+      "pitch_deg": -14.4303,
+      "roll_deg": 6.3015,
       "distortion": {
-        "k1": -0.003,
-        "k2": 0.0005
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.0,
+        "d": 0.0,
+        "e": 0.0
       },
       "principal_point": [
         1024.0,
@@ -104,12 +113,15 @@
       "focal_length_mm": 12.0,
       "fov_h_deg": 86.46,
       "fov_v_deg": 52.74,
-      "yaw_deg": 80.6936,
-      "pitch_deg": 7.4816,
-      "roll_deg": -1.4741,
+      "yaw_deg": 73.6077,
+      "pitch_deg": -20.5633,
+      "roll_deg": -0.5053,
       "distortion": {
-        "k1": -0.003,
-        "k2": 0.0005
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.0,
+        "d": 0.0,
+        "e": 0.0
       },
       "principal_point": [
         1024.0,
@@ -130,12 +142,15 @@
       "focal_length_mm": 12.0,
       "fov_h_deg": 86.46,
       "fov_v_deg": 52.74,
-      "yaw_deg": 134.7684,
-      "pitch_deg": 9.9094,
-      "roll_deg": 0.0987,
+      "yaw_deg": 132.5163,
+      "pitch_deg": -19.0858,
+      "roll_deg": -4.8063,
       "distortion": {
-        "k1": -0.003,
-        "k2": 0.0005
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.0,
+        "d": 0.0,
+        "e": 0.0
       },
       "principal_point": [
         1024.0,
@@ -156,12 +171,15 @@
       "focal_length_mm": 12.0,
       "fov_h_deg": 86.46,
       "fov_v_deg": 52.74,
-      "yaw_deg": -136.145,
-      "pitch_deg": 8.4849,
-      "roll_deg": -1.6827,
+      "yaw_deg": -161.7786,
+      "pitch_deg": -18.385,
+      "roll_deg": 3.517,
       "distortion": {
-        "k1": -0.003,
-        "k2": 0.0005
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.0,
+        "d": 0.0,
+        "e": 0.0
       },
       "principal_point": [
         1024.0,
@@ -180,14 +198,17 @@
       "projection": "rectilinear",
       "focal_length_px": 817.02,
       "focal_length_mm": 9.0,
-      "fov_h_deg": 102.82,
-      "fov_v_deg": 66.84,
-      "yaw_deg": -83.5,
-      "pitch_deg": 54.8,
+      "fov_h_deg": 102.83,
+      "fov_v_deg": 66.92,
+      "yaw_deg": -101.1922,
+      "pitch_deg": 54.83,
       "roll_deg": 0.0,
       "distortion": {
-        "k1": -0.005,
-        "k2": 0.001
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.0,
+        "d": 0.0,
+        "e": 0.0
       },
       "principal_point": [
         1024.0,
@@ -206,14 +227,17 @@
       "projection": "rectilinear",
       "focal_length_px": 817.02,
       "focal_length_mm": 9.0,
-      "fov_h_deg": 102.82,
-      "fov_v_deg": 66.84,
-      "yaw_deg": 26.6,
-      "pitch_deg": 54.8,
+      "fov_h_deg": 102.83,
+      "fov_v_deg": 66.92,
+      "yaw_deg": 16.0724,
+      "pitch_deg": 54.83,
       "roll_deg": 0.0,
       "distortion": {
-        "k1": -0.005,
-        "k2": 0.001
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.0,
+        "d": 0.0,
+        "e": 0.0
       },
       "principal_point": [
         1024.0,
@@ -232,14 +256,17 @@
       "projection": "rectilinear",
       "focal_length_px": 817.02,
       "focal_length_mm": 9.0,
-      "fov_h_deg": 102.82,
-      "fov_v_deg": 66.84,
-      "yaw_deg": 145.0,
-      "pitch_deg": 54.8,
+      "fov_h_deg": 102.83,
+      "fov_v_deg": 66.92,
+      "yaw_deg": 134.7818,
+      "pitch_deg": 54.83,
       "roll_deg": 0.0,
       "distortion": {
-        "k1": -0.005,
-        "k2": 0.001
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.0,
+        "d": 0.0,
+        "e": 0.0
       },
       "principal_point": [
         1024.0,

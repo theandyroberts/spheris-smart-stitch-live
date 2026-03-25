@@ -5,7 +5,8 @@ struct CameraParams {
     float3x3 R_inv;        // World-to-camera rotation (R^T)
     float2 focal;           // (fx, fy) in pixels
     float2 principal;       // (cx, cy) in pixels
-    float2 distortion;      // (k1, k2)
+    float3 distABC;         // PTGui polynomial (a, b, c)
+    float2 distDE;          // PTGui shift (d, e) in pixels
     float2 imageSize;       // (width, height) of source image
     float2 outputSize;      // (width, height) of equirectangular output
 };
@@ -45,16 +46,30 @@ kernel void generateRemap(
     float xn = camRay.x / camRay.z;
     float yn = camRay.y / camRay.z;
 
-    // Radial distortion
-    float r2 = xn * xn + yn * yn;
-    float r4 = r2 * r2;
-    float dist = 1.0 + cam.distortion.x * r2 + cam.distortion.y * r4;
-    float xd = xn * dist;
-    float yd = yn * dist;
+    // PTGui radial distortion: r' = a*r^4 + b*r^3 + c*r^2 + (1-a-b-c)*r
+    // where r is normalized radius (1.0 = image half-diagonal mapped to focal)
+    float r = sqrt(xn * xn + yn * yn);
+    float a = cam.distABC.x;
+    float b = cam.distABC.y;
+    float c = cam.distABC.z;
 
-    // Pixel coordinates
-    float u = cam.focal.x * xd + cam.principal.x;
-    float v = cam.focal.y * yd + cam.principal.y;
+    float scale;
+    if (r > 0.0001) {
+        float r2 = r * r;
+        float r3 = r2 * r;
+        float r4 = r2 * r2;
+        float r_corrected = a * r4 + b * r3 + c * r2 + (1.0 - a - b - c) * r;
+        scale = r_corrected / r;
+    } else {
+        scale = 1.0 - a - b - c;  // limit as r→0
+    }
+
+    float xd = xn * scale;
+    float yd = yn * scale;
+
+    // Pixel coordinates (d/e shift applied)
+    float u = cam.focal.x * xd + cam.principal.x + cam.distDE.x;
+    float v = cam.focal.y * yd + cam.principal.y + cam.distDE.y;
 
     // Bounds check with small margin
     float margin = 2.0;

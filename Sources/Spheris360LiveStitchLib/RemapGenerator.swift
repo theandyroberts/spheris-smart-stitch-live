@@ -3,12 +3,14 @@ import Metal
 import simd
 
 /// GPU buffer struct matching CameraParams in RemapCompute.metal.
-/// float3x3 is 48 bytes (3 columns × 16 bytes each), followed by 5 × float2 (8 bytes each).
+/// Must match Metal struct layout exactly.
 struct CameraParamsBuffer {
-    var rotationInverse: simd_float3x3  // 48 bytes
+    var rotationInverse: simd_float3x3  // 48 bytes (3 columns × 16 bytes)
     var focal: SIMD2<Float>             // 8 bytes
     var principal: SIMD2<Float>         // 8 bytes
-    var distortion: SIMD2<Float>        // 8 bytes
+    var distABC: SIMD3<Float>           // 12 bytes (a, b, c)
+    var _pad0: Float = 0               // 4 bytes padding to align next float2
+    var distDE: SIMD2<Float>            // 8 bytes (d, e)
     var imageSize: SIMD2<Float>         // 8 bytes
     var outputSize: SIMD2<Float>        // 8 bytes
 }
@@ -37,17 +39,10 @@ public final class RemapGenerator {
     }
 
     /// Generate remap texture array for 9 grid slots.
-    /// - Parameters:
-    ///   - calibration: The loaded calibration data
-    ///   - gridSlotCameraIDs: Camera ID for each grid slot, e.g. ["G","H","J","A","B","C","D","E","F"]
-    ///   - outputWidth: Equirectangular output width (e.g. 3840)
-    ///   - outputHeight: Equirectangular output height (e.g. 1920)
-    /// - Returns: texture2d_array with 9 slices
     public func generate(calibration: CalibrationData,
                          gridSlotCameraIDs: [String],
                          outputWidth: Int,
                          outputHeight: Int) -> MTLTexture {
-        // Create texture array
         let desc = MTLTextureDescriptor()
         desc.textureType = .type2DArray
         desc.pixelFormat = .rgba16Float
@@ -84,11 +79,13 @@ public final class RemapGenerator {
                 continue
             }
 
+            let dist = cam.distortion
             var params = CameraParamsBuffer(
                 rotationInverse: cam.rotationInverse,
                 focal: SIMD2(Float(cam.focalLengthPx), Float(cam.focalLengthPx)),
                 principal: SIMD2(Float(cam.cx), Float(cam.cy)),
-                distortion: SIMD2(Float(cam.distortion.k1), Float(cam.distortion.k2)),
+                distABC: SIMD3(Float(dist.a), Float(dist.b), Float(dist.c)),
+                distDE: SIMD2(Float(dist.d), Float(dist.e)),
                 imageSize: SIMD2(Float(cam.imageWidth), Float(cam.imageHeight)),
                 outputSize: SIMD2(Float(outputWidth), Float(outputHeight))
             )

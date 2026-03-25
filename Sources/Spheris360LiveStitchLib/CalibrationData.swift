@@ -88,14 +88,12 @@ public struct CalibrationData: Codable {
                 // Lens name from focal length
                 let lensName = String(format: "%.0fmm %@", focalMm, lenstype)
 
-                // PTGui a/b/c distortion → approximate k1/k2
-                // PTGui model: r' = a*r^4 + b*r^3 + c*r^2 + (1-a-b-c)*r
-                // Our model: r' = r * (1 + k1*r^2 + k2*r^4)
-                // When a=b=c=0, both are identity. For small values, c ≈ k1.
+                // PTGui distortion coefficients — pass through directly
+                let ptsA = img["a"] as? Double ?? 0.0
                 let ptsB = img["b"] as? Double ?? 0.0
                 let ptsC = img["c"] as? Double ?? 0.0
-                let k1 = ptsC + ptsB  // rough approximation
-                let k2 = img["a"] as? Double ?? 0.0
+                let ptsD = img["d"] as? Double ?? 0.0
+                let ptsE = img["e"] as? Double ?? 0.0
 
                 // Image file: strip extension
                 let imageFile = (filename as NSString).deletingPathExtension
@@ -114,7 +112,7 @@ public struct CalibrationData: Codable {
                     yawDeg: yaw,
                     pitchDeg: pitch,
                     rollDeg: roll,
-                    distortion: DistortionParams(k1: k1, k2: k2),
+                    distortion: DistortionParams(a: ptsA, b: ptsB, c: ptsC, d: ptsD, e: ptsE),
                     principalPoint: [Double(width) / 2.0, Double(height) / 2.0]
                 )
                 cameras.append(cam)
@@ -216,7 +214,16 @@ public struct CameraCalibration: Codable {
     }
 }
 
+/// PTGui-compatible distortion: r' = a*r^4 + b*r^3 + c*r^2 + (1-a-b-c)*r
+/// d/e are horizontal/vertical pixel shift.
 public struct DistortionParams: Codable {
-    public let k1: Double
-    public let k2: Double
+    public let a: Double
+    public let b: Double
+    public let c: Double
+    public let d: Double
+    public let e: Double
+
+    public init(a: Double = 0, b: Double = 0, c: Double = 0, d: Double = 0, e: Double = 0) {
+        self.a = a; self.b = b; self.c = c; self.d = d; self.e = e
+    }
 }

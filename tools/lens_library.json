@@ -14,7 +14,7 @@
       "fov_h_deg": 102.8,
       "fov_v_deg": 66.8,
       "projection": "rectilinear",
-      "typical_distortion": {"k1": -0.005, "k2": 0.001}
+      "typical_distortion": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 0.0, "e": 0.0}
     },
     {
       "lens_name": "Laowa 12mm Cine",
@@ -23,7 +23,7 @@
       "fov_h_deg": 86.5,
       "fov_v_deg": 52.7,
       "projection": "rectilinear",
-      "typical_distortion": {"k1": -0.003, "k2": 0.0005}
+      "typical_distortion": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 0.0, "e": 0.0}
     },
     {
       "lens_name": "Laowa 14mm Zero-D",
@@ -32,7 +32,7 @@
       "fov_h_deg": 77.7,
       "fov_v_deg": 46.0,
       "projection": "rectilinear",
-      "typical_distortion": {"k1": -0.004, "k2": 0.001}
+      "typical_distortion": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 0.0, "e": 0.0}
     },
     {
       "lens_name": "Sigma 14mm Art",
@@ -41,7 +41,7 @@
       "fov_h_deg": 77.7,
       "fov_v_deg": 46.0,
       "projection": "rectilinear",
-      "typical_distortion": {"k1": -0.02, "k2": 0.005}
+      "typical_distortion": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 0.0, "e": 0.0}
     },
     {
       "lens_name": "Canon 14mm L",
@@ -50,7 +50,7 @@
       "fov_h_deg": 77.7,
       "fov_v_deg": 46.0,
       "projection": "rectilinear",
-      "typical_distortion": {"k1": -0.025, "k2": 0.008}
+      "typical_distortion": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 0.0, "e": 0.0}
     },
     {
       "lens_name": "Samyang 14mm",
@@ -59,7 +59,7 @@
       "fov_h_deg": 77.7,
       "fov_v_deg": 46.0,
       "projection": "rectilinear",
-      "typical_distortion": {"k1": -0.03, "k2": 0.01}
+      "typical_distortion": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 0.0, "e": 0.0}
     },
     {
       "lens_name": "Sigma 12-24mm at 12mm",
@@ -68,7 +68,7 @@
       "fov_h_deg": 86.5,
       "fov_v_deg": 52.7,
       "projection": "rectilinear",
-      "typical_distortion": {"k1": -0.02, "k2": 0.006}
+      "typical_distortion": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 0.0, "e": 0.0}
     },
     {
       "lens_name": "Irix 11mm",
@@ -77,7 +77,7 @@
       "fov_h_deg": 91.5,
       "fov_v_deg": 56.7,
       "projection": "rectilinear",
-      "typical_distortion": {"k1": -0.015, "k2": 0.004}
+      "typical_distortion": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 0.0, "e": 0.0}
     },
     {
       "lens_name": "Tokina 11-16mm at 11mm",
@@ -86,7 +86,7 @@
       "fov_h_deg": 91.5,
       "fov_v_deg": 56.7,
       "projection": "rectilinear",
-      "typical_distortion": {"k1": -0.025, "k2": 0.008}
+      "typical_distortion": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 0.0, "e": 0.0}
     },
     {
       "lens_name": "SLR Magic 10mm",
@@ -95,7 +95,7 @@
       "fov_h_deg": 96.9,
       "fov_v_deg": 61.4,
       "projection": "rectilinear",
-      "typical_distortion": {"k1": -0.018, "k2": 0.005}
+      "typical_distortion": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 0.0, "e": 0.0}
     }
   ]
 }

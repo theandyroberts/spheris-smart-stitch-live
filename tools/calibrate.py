@@ -530,8 +530,11 @@ def write_calibration_json(cameras_refined, images, image_filenames,
             "pitch_deg": round(pitch, 4),
             "roll_deg": round(roll, 4),
             "distortion": {
-                "k1": lens["typical_distortion"]["k1"],
-                "k2": lens["typical_distortion"]["k2"]
+                "a": lens["typical_distortion"].get("a", 0.0),
+                "b": lens["typical_distortion"].get("b", 0.0),
+                "c": lens["typical_distortion"].get("c", 0.0),
+                "d": lens["typical_distortion"].get("d", 0.0),
+                "e": lens["typical_distortion"].get("e", 0.0),
             },
             "principal_point": [round(float(c.ppx), 2), round(float(c.ppy), 2)],
         })
@@ -705,7 +708,7 @@ def main():
                 "fov_h_deg": fov_h,
                 "fov_v_deg": round(fov_v, 1),
                 "projection": "rectilinear",
-                "typical_distortion": {"k1": 0.0, "k2": 0.0},
+                "typical_distortion": {"a": 0.0, "b": 0.0, "c": 0.0, "d": 0.0, "e": 0.0},
             }
         lens = find_lens(lenses, name_arg)
         if not lens:
