@@ -4,12 +4,12 @@ import simd
 
 /// GPU buffer struct matching CameraParams in RemapCompute.metal.
 /// Must match Metal struct layout exactly.
+/// Uses SIMD4 for distABC to match Metal float3's 16-byte padded size.
 struct CameraParamsBuffer {
     var rotationInverse: simd_float3x3  // 48 bytes (3 columns × 16 bytes)
     var focal: SIMD2<Float>             // 8 bytes
     var principal: SIMD2<Float>         // 8 bytes
-    var distABC: SIMD3<Float>           // 12 bytes (a, b, c)
-    var _pad0: Float = 0               // 4 bytes padding to align next float2
+    var distABC: SIMD4<Float>           // 16 bytes (a, b, c, pad) — matches Metal float3
     var distDE: SIMD2<Float>            // 8 bytes (d, e)
     var imageSize: SIMD2<Float>         // 8 bytes
     var outputSize: SIMD2<Float>        // 8 bytes
@@ -84,7 +84,7 @@ public final class RemapGenerator {
                 rotationInverse: cam.rotationInverse,
                 focal: SIMD2(Float(cam.focalLengthPx), Float(cam.focalLengthPx)),
                 principal: SIMD2(Float(cam.cx), Float(cam.cy)),
-                distABC: SIMD3(Float(dist.a), Float(dist.b), Float(dist.c)),
+                distABC: SIMD4(Float(dist.a), Float(dist.b), Float(dist.c), 0),
                 distDE: SIMD2(Float(dist.d), Float(dist.e)),
                 imageSize: SIMD2(Float(cam.imageWidth), Float(cam.imageHeight)),
                 outputSize: SIMD2(Float(outputWidth), Float(outputHeight))
