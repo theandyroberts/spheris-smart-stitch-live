@@ -13,7 +13,7 @@ public final class StreamSettings: @unchecked Sendable {
 
     public init() {
         let defs: [String: Any] = [
-            "stream_rtmpURL": "rtmp://localhost/live/spheris",
+            "stream_rtmpURL": "rtmp://stream.sparkpoint.studio/live/spheris",
             "stream_fps": 6,
             "stream_width": 1920,
             "stream_height": 960,
