@@ -21,6 +21,9 @@ public final class StitchDisplayView: MTKView, @unchecked Sendable {
     private var labelTextures: [MTLTexture] = []
     private let cameraCount = 9
 
+    // Streaming frame capture
+    public var frameGrabber: FrameGrabber?
+
     /// cameraLabels: array of (label, normalizedU, normalizedV)
     public init(frame: CGRect, metalDevice: MTLDevice, remapTexture: MTLTexture,
                 cameraLabels: [(String, Float, Float)] = []) {
@@ -217,6 +220,12 @@ public final class StitchDisplayView: MTKView, @unchecked Sendable {
         }
 
         encoder.endEncoding()
+
+        // Stream frame capture (throttled by FrameGrabber)
+        if let grabber = frameGrabber, let drawable = currentDrawable {
+            grabber.captureIfNeeded(commandBuffer: commandBuffer, sourceTexture: drawable.texture)
+        }
+
         if let drawable = currentDrawable { commandBuffer.present(drawable) }
         commandBuffer.commit()
     }

@@ -29,6 +29,13 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     private var calibButton: NSButton?
     private var pickerPanel: CalibrationPickerPanel?
 
+    // Streaming
+    private var streamSettings: StreamSettings?
+    private var frameGrabber: FrameGrabber?
+    private var rtmpStreamer: RTMPStreamer?
+    private var streamButton: NSButton?
+    private var streamSettingsPanel: StreamSettingsPanel?
+
     override public init() { super.init() }
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
@@ -148,6 +155,19 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         // Update scrubber position periodically
         scrubberTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.updateScrubberPosition() }
+        }
+
+        // ── Set up streaming ──
+        let ss = StreamSettings()
+        self.streamSettings = ss
+        let grabber = FrameGrabber(device: device, width: ss.streamWidth, height: ss.streamHeight, fps: ss.streamFPS)
+        self.frameGrabber = grabber
+        sv.frameGrabber = grabber
+
+        let streamer = RTMPStreamer(settings: ss)
+        self.rtmpStreamer = streamer
+        grabber.onFrame = { [weak streamer] data, _, _ in
+            streamer?.pushFrame(data)
         }
 
         gridWin.makeKeyAndOrderFront(nil)
@@ -277,12 +297,22 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         return bar
     }
 
-    /// Stitch window control bar: play/pause + scrubber + time (no picker)
+    /// Stitch window control bar: stream button + play/pause + scrubber + time
     private func makePlaybackControlBar(width: CGFloat) -> NSView {
         let bar = NSView(frame: NSRect(x: 0, y: 0, width: width, height: 36))
         bar.autoresizingMask = [.width]
 
-        let playBtn = NSButton(frame: NSRect(x: 4, y: 4, width: 28, height: 28))
+        // Stream control button
+        let sBtn = NSButton(frame: NSRect(x: 4, y: 4, width: 80, height: 28))
+        sBtn.bezelStyle = .rounded
+        sBtn.title = "Stream"
+        sBtn.font = .systemFont(ofSize: 11)
+        sBtn.target = self
+        sBtn.action = #selector(openStreamSettings)
+        bar.addSubview(sBtn)
+        self.streamButton = sBtn
+
+        let playBtn = NSButton(frame: NSRect(x: 88, y: 4, width: 28, height: 28))
         playBtn.bezelStyle = .regularSquare
         playBtn.title = "⏸"
         playBtn.font = .systemFont(ofSize: 14)
@@ -291,7 +321,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         bar.addSubview(playBtn)
         playPauseButtons.append(playBtn)
 
-        let slider = NSSlider(frame: NSRect(x: 36, y: 8, width: width - 130, height: 20))
+        let slider = NSSlider(frame: NSRect(x: 120, y: 8, width: width - 214, height: 20))
         slider.minValue = 0
         slider.maxValue = 1
         slider.doubleValue = 0
@@ -315,6 +345,41 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         timeLabels.append(label)
 
         return bar
+    }
+
+    // MARK: - Streaming controls
+
+    @objc private func openStreamSettings() {
+        guard let settings = streamSettings, let window = stitchWindow else { return }
+        let panel = StreamSettingsPanel(
+            settings: settings,
+            isStreaming: { [weak self] in self?.rtmpStreamer?.isStreaming ?? false },
+            onStart: { [weak self] in self?.startStreaming() },
+            onStop: { [weak self] in self?.stopStreaming() }
+        )
+        panel.center()
+        window.addChildWindow(panel, ordered: .above)
+        panel.makeKeyAndOrderFront(nil)
+        self.streamSettingsPanel = panel
+    }
+
+    private func startStreaming() {
+        guard let streamer = rtmpStreamer, let grabber = frameGrabber, let settings = streamSettings else { return }
+        grabber.updateFPS(settings.streamFPS)
+        grabber.enabled = true
+        do {
+            try streamer.start()
+            streamButton?.title = "Live"
+        } catch {
+            print("Failed to start stream: \(error)")
+            grabber.enabled = false
+        }
+    }
+
+    private func stopStreaming() {
+        rtmpStreamer?.stop()
+        frameGrabber?.enabled = false
+        streamButton?.title = "Stream"
     }
 
     // MARK: - Playback controls
@@ -383,6 +448,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
 
     public func applicationWillTerminate(_ notification: Notification) {
         scrubberTimer?.invalidate()
+        rtmpStreamer?.stop()
         router?.stopAll()
     }
 
