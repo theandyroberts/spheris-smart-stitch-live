@@ -19,7 +19,7 @@ public final class CalibrationPickerPanel: NSPanel, NSTableViewDataSource, NSTab
         self.library = library
         self.onSelect = onSelect
         self.onRename = onRename
-        let rect = NSRect(x: 0, y: 0, width: 520, height: 400)
+        let rect = NSRect(x: 0, y: 0, width: 680, height: 400)
         super.init(contentRect: rect,
                    styleMask: [.titled, .closable, .resizable],
                    backing: .buffered, defer: false)
@@ -46,7 +46,7 @@ public final class CalibrationPickerPanel: NSPanel, NSTableViewDataSource, NSTab
 
         let nameCol = NSTableColumn(identifier: .init("name"))
         nameCol.title = "Name"
-        nameCol.width = 260
+        nameCol.width = 400
         nameCol.minWidth = 120
         tableView.addTableColumn(nameCol)
 

@@ -230,7 +230,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         bar.autoresizingMask = [.width]
 
         // Calibration library button
-        let calibBtn = NSButton(frame: NSRect(x: 4, y: 4, width: 240, height: 28))
+        let calibBtn = NSButton(frame: NSRect(x: 4, y: 4, width: 340, height: 28))
         calibBtn.bezelStyle = .rounded
         calibBtn.title = currentProfile?.displayName ?? "No Calibration"
         calibBtn.alignment = .left
@@ -241,7 +241,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         bar.addSubview(calibBtn)
         self.calibButton = calibBtn
 
-        let playBtn = NSButton(frame: NSRect(x: 248, y: 4, width: 28, height: 28))
+        let playBtn = NSButton(frame: NSRect(x: 348, y: 4, width: 28, height: 28))
         playBtn.bezelStyle = .regularSquare
         playBtn.title = "⏸"
         playBtn.font = .systemFont(ofSize: 14)
@@ -250,7 +250,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         bar.addSubview(playBtn)
         playPauseButtons.append(playBtn)
 
-        let sliderX: CGFloat = 280
+        let sliderX: CGFloat = 380
         let slider = NSSlider(frame: NSRect(x: sliderX, y: 8, width: width - sliderX - 94, height: 20))
         slider.minValue = 0
         slider.maxValue = 1
