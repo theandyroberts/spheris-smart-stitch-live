@@ -338,7 +338,7 @@ WATCH_HTML = """<!DOCTYPE html>
   .header .user { font-size: 12px; color: #888; }
   .header a { color: #666; font-size: 12px; text-decoration: none; }
   .video-container { width: 100%; background: #000; position: relative; }
-  video { width: 100%; height: auto; aspect-ratio: 2/1; object-fit: contain; display: block; }
+  video { width: 100%; display: block; }
   .standby { display: flex; justify-content: center; align-items: center;
              height: 50vh; color: #666; font-size: 18px; }
   .feedback-bar { display: flex; padding: 8px 16px; background: #111; gap: 8px; }

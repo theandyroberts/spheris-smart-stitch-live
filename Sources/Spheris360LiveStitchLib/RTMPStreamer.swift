@@ -19,7 +19,8 @@ public final class RTMPStreamer: @unchecked Sendable {
     }
 
     /// Start the ffmpeg RTMP push process.
-    public func start() throws {
+    /// inputWidth/inputHeight: actual drawable size (ffmpeg scales to stream resolution).
+    public func start(inputWidth: Int, inputHeight: Int) throws {
         lock.lock()
         guard !_isStreaming else { lock.unlock(); return }
         lock.unlock()
@@ -33,15 +34,17 @@ public final class RTMPStreamer: @unchecked Sendable {
         let proc = Process()
         proc.executableURL = URL(fileURLWithPath: ffmpeg)
         proc.arguments = [
-            // Input 0: raw BGRA video from stdin
+            // Input 0: raw BGRA video from stdin at drawable resolution
             "-f", "rawvideo",
             "-pixel_format", "bgra",
-            "-video_size", "\(settings.streamWidth)x\(settings.streamHeight)",
+            "-video_size", "\(inputWidth)x\(inputHeight)",
             "-framerate", "\(settings.streamFPS)",
             "-i", "pipe:0",
             // Input 1: silent audio (prevents nginx-rtmp ghost audio)
             "-f", "lavfi",
             "-i", "anullsrc=r=44100:cl=mono",
+            // Scale to stream resolution
+            "-vf", "scale=\(settings.streamWidth):\(settings.streamHeight)",
             // H.264 encoding — Baseline profile for max browser compat
             "-c:v", "libx264",
             "-profile:v", "baseline",

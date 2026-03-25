@@ -366,14 +366,15 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     private func startStreaming() {
         guard let streamer = rtmpStreamer, let grabber = frameGrabber, let settings = streamSettings else { return }
         grabber.updateFPS(settings.streamFPS)
-        grabber.enabled = true
-        do {
-            try streamer.start()
-            streamButton?.title = "Live"
-        } catch {
-            print("Failed to start stream: \(error)")
-            grabber.enabled = false
+        // Start ffmpeg lazily on first frame so we know the drawable size
+        grabber.onFrame = { [weak streamer] data, w, h in
+            if let s = streamer, !s.isStreaming {
+                try? s.start(inputWidth: w, inputHeight: h)
+            }
+            streamer?.pushFrame(data)
         }
+        grabber.enabled = true
+        streamButton?.title = "Live"
     }
 
     private func stopStreaming() {
