@@ -216,6 +216,9 @@ public struct CameraCalibration: Codable {
 
 /// PTGui-compatible distortion: r' = a*r^4 + b*r^3 + c*r^2 + (1-a-b-c)*r
 /// d/e are horizontal/vertical pixel shift.
+/// PTGui-compatible distortion: r' = a*r^4 + b*r^3 + c*r^2 + (1-a-b-c)*r
+/// d/e are horizontal/vertical pixel shift.
+/// Also handles legacy k1/k2 format (treated as zero distortion).
 public struct DistortionParams: Codable {
     public let a: Double
     public let b: Double
@@ -225,5 +228,15 @@ public struct DistortionParams: Codable {
 
     public init(a: Double = 0, b: Double = 0, c: Double = 0, d: Double = 0, e: Double = 0) {
         self.a = a; self.b = b; self.c = c; self.d = d; self.e = e
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        // Try a/b/c/d/e first, fall back to zeros if old k1/k2 format
+        self.a = (try? container.decode(Double.self, forKey: .a)) ?? 0
+        self.b = (try? container.decode(Double.self, forKey: .b)) ?? 0
+        self.c = (try? container.decode(Double.self, forKey: .c)) ?? 0
+        self.d = (try? container.decode(Double.self, forKey: .d)) ?? 0
+        self.e = (try? container.decode(Double.self, forKey: .e)) ?? 0
     }
 }

@@ -1,0 +1,277 @@
+{
+  "rig_name": "Spheris 9-Cam Ground Rig",
+  "created": "2026-03-24T23:53:54.093934+00:00",
+  "tool": "spheris-calibrate v0.2",
+  "sensor": {
+    "width_mm": 22.56,
+    "height_mm": 11.88
+  },
+  "output_projection": "equirectangular",
+  "output_size": [
+    3840,
+    1920
+  ],
+  "cameras": [
+    {
+      "id": "A",
+      "image_file": "A002_A009_032364",
+      "group": "horizontal",
+      "lens": "Laowa 12mm Cine",
+      "image_size": [
+        2048,
+        1080
+      ],
+      "projection": "rectilinear",
+      "focal_length_px": 1089.36,
+      "focal_length_mm": 12.0,
+      "fov_h_deg": 86.46,
+      "fov_v_deg": 52.74,
+      "yaw_deg": -100.5289,
+      "pitch_deg": -17.7594,
+      "roll_deg": 1.8784,
+      "distortion": {
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.0,
+        "d": 0.0,
+        "e": 0.0
+      },
+      "principal_point": [
+        1024.0,
+        540.0
+      ]
+    },
+    {
+      "id": "B",
+      "image_file": "B002_B009_1217VA",
+      "group": "horizontal",
+      "lens": "Laowa 12mm Cine",
+      "image_size": [
+        2048,
+        1080
+      ],
+      "projection": "rectilinear",
+      "focal_length_px": 1089.36,
+      "focal_length_mm": 12.0,
+      "fov_h_deg": 86.46,
+      "fov_v_deg": 52.74,
+      "yaw_deg": -41.269,
+      "pitch_deg": -18.1662,
+      "roll_deg": -7.5784,
+      "distortion": {
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.0,
+        "d": 0.0,
+        "e": 0.0
+      },
+      "principal_point": [
+        1024.0,
+        540.0
+      ]
+    },
+    {
+      "id": "C",
+      "image_file": "C002_C009_0323FG",
+      "group": "horizontal",
+      "lens": "Laowa 12mm Cine",
+      "image_size": [
+        2048,
+        1080
+      ],
+      "projection": "rectilinear",
+      "focal_length_px": 1089.36,
+      "focal_length_mm": 12.0,
+      "fov_h_deg": 86.46,
+      "fov_v_deg": 52.74,
+      "yaw_deg": 15.8783,
+      "pitch_deg": -14.4303,
+      "roll_deg": 6.3015,
+      "distortion": {
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.0,
+        "d": 0.0,
+        "e": 0.0
+      },
+      "principal_point": [
+        1024.0,
+        540.0
+      ]
+    },
+    {
+      "id": "D",
+      "image_file": "D002_D009_0709XG",
+      "group": "horizontal",
+      "lens": "Laowa 12mm Cine",
+      "image_size": [
+        2048,
+        1080
+      ],
+      "projection": "rectilinear",
+      "focal_length_px": 1089.36,
+      "focal_length_mm": 12.0,
+      "fov_h_deg": 86.46,
+      "fov_v_deg": 52.74,
+      "yaw_deg": 73.6077,
+      "pitch_deg": -20.5633,
+      "roll_deg": -0.5053,
+      "distortion": {
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.0,
+        "d": 0.0,
+        "e": 0.0
+      },
+      "principal_point": [
+        1024.0,
+        540.0
+      ]
+    },
+    {
+      "id": "E",
+      "image_file": "E002_E009_032305",
+      "group": "horizontal",
+      "lens": "Laowa 12mm Cine",
+      "image_size": [
+        2048,
+        1080
+      ],
+      "projection": "rectilinear",
+      "focal_length_px": 1089.36,
+      "focal_length_mm": 12.0,
+      "fov_h_deg": 86.46,
+      "fov_v_deg": 52.74,
+      "yaw_deg": 132.5163,
+      "pitch_deg": -19.0858,
+      "roll_deg": -4.8063,
+      "distortion": {
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.0,
+        "d": 0.0,
+        "e": 0.0
+      },
+      "principal_point": [
+        1024.0,
+        540.0
+      ]
+    },
+    {
+      "id": "F",
+      "image_file": "F002_F009_0323XK",
+      "group": "horizontal",
+      "lens": "Laowa 12mm Cine",
+      "image_size": [
+        2048,
+        1080
+      ],
+      "projection": "rectilinear",
+      "focal_length_px": 1089.36,
+      "focal_length_mm": 12.0,
+      "fov_h_deg": 86.46,
+      "fov_v_deg": 52.74,
+      "yaw_deg": -161.7786,
+      "pitch_deg": -18.385,
+      "roll_deg": 3.517,
+      "distortion": {
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.0,
+        "d": 0.0,
+        "e": 0.0
+      },
+      "principal_point": [
+        1024.0,
+        540.0
+      ]
+    },
+    {
+      "id": "G",
+      "image_file": "G002_G009_0323WD",
+      "group": "upward",
+      "lens": "Laowa 9mm Cine",
+      "image_size": [
+        2048,
+        1080
+      ],
+      "projection": "rectilinear",
+      "focal_length_px": 817.02,
+      "focal_length_mm": 9.0,
+      "fov_h_deg": 102.83,
+      "fov_v_deg": 66.92,
+      "yaw_deg": -101.1922,
+      "pitch_deg": 54.83,
+      "roll_deg": 0.0,
+      "distortion": {
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.0,
+        "d": 0.0,
+        "e": 0.0
+      },
+      "principal_point": [
+        1024.0,
+        540.0
+      ]
+    },
+    {
+      "id": "H",
+      "image_file": "H002_H009_0322W3",
+      "group": "upward",
+      "lens": "Laowa 9mm Cine",
+      "image_size": [
+        2048,
+        1080
+      ],
+      "projection": "rectilinear",
+      "focal_length_px": 817.02,
+      "focal_length_mm": 9.0,
+      "fov_h_deg": 102.83,
+      "fov_v_deg": 66.92,
+      "yaw_deg": 16.0724,
+      "pitch_deg": 54.83,
+      "roll_deg": 0.0,
+      "distortion": {
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.0,
+        "d": 0.0,
+        "e": 0.0
+      },
+      "principal_point": [
+        1024.0,
+        540.0
+      ]
+    },
+    {
+      "id": "J",
+      "image_file": "J002_J009_0323V7",
+      "group": "upward",
+      "lens": "Laowa 9mm Cine",
+      "image_size": [
+        2048,
+        1080
+      ],
+      "projection": "rectilinear",
+      "focal_length_px": 817.02,
+      "focal_length_mm": 9.0,
+      "fov_h_deg": 102.83,
+      "fov_v_deg": 66.92,
+      "yaw_deg": 134.7818,
+      "pitch_deg": 54.83,
+      "roll_deg": 0.0,
+      "distortion": {
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.0,
+        "d": 0.0,
+        "e": 0.0
+      },
+      "principal_point": [
+        1024.0,
+        540.0
+      ]
+    }
+  ]
+}
