@@ -314,19 +314,22 @@ public final class StitchDisplayView: MTKView, @unchecked Sendable {
         }
 
         // Pass 3: Metadata status bar (tally dot + bottom bar crop)
-        if let overlayPipe = overlayPipeline {
-            encoder.setRenderPipelineState(overlayPipe)
-            if let tallyTex = tallyTexture, let tallyVB = tallyVertexBuffer {
-                encoder.setVertexBuffer(tallyVB, offset: 0, index: 0)
-                encoder.setFragmentTexture(tallyTex, index: 0)
-                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
-            }
-            if let barTex = bottomBarTexture, let barVB = bottomBarVertexBuffer {
-                encoder.setVertexBuffer(barVB, offset: 0, index: 0)
-                encoder.setFragmentTexture(barTex, index: 0)
-                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
-            }
-        }
+        // Disabled in dev mode — source files are clean ProRes without RED overlays.
+        // The crop regions contain video edges, not metadata text.
+        // Enable when real SDI feeds with burned-in overlays are connected.
+        // if let overlayPipe = overlayPipeline {
+        //     encoder.setRenderPipelineState(overlayPipe)
+        //     if let tallyTex = tallyTexture, let tallyVB = tallyVertexBuffer {
+        //         encoder.setVertexBuffer(tallyVB, offset: 0, index: 0)
+        //         encoder.setFragmentTexture(tallyTex, index: 0)
+        //         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
+        //     }
+        //     if let barTex = bottomBarTexture, let barVB = bottomBarVertexBuffer {
+        //         encoder.setVertexBuffer(barVB, offset: 0, index: 0)
+        //         encoder.setFragmentTexture(barTex, index: 0)
+        //         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
+        //     }
+        // }
 
         encoder.endEncoding()
 
