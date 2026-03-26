@@ -245,9 +245,9 @@ public final class StitchDisplayView: MTKView, @unchecked Sendable {
     }
 
     private func buildTallyVertices(device: MTLDevice) {
-        // Position tally dot in bottom-left corner of stitch view
-        let x0: Float = -0.98, x1: Float = -0.94
-        let y0: Float = -0.98, y1: Float = -0.92
+        // Position tally dot at bottom-right of stitch view
+        let x0: Float = 0.92, x1: Float = 0.96
+        let y0: Float = -0.99, y1: Float = -0.94
         let verts: [Float] = [
             x0, y0, 0, 1,  x1, y0, 1, 1,  x1, y1, 1, 0,
             x0, y0, 0, 1,  x1, y1, 1, 0,  x0, y1, 0, 0,
@@ -256,9 +256,9 @@ public final class StitchDisplayView: MTKView, @unchecked Sendable {
     }
 
     private func buildBottomBarVertices(device: MTLDevice) {
-        // Render bottom bar strip across bottom of stitch view
-        let x0: Float = -0.92, x1: Float = 0.98
-        let y0: Float = -0.98, y1: Float = -0.92
+        // Render bottom bar crop as a small strip at bottom-left of stitch view
+        let x0: Float = -0.98, x1: Float = -0.20
+        let y0: Float = -0.99, y1: Float = -0.94
         let verts: [Float] = [
             x0, y0, 0, 1,  x1, y0, 1, 1,  x1, y1, 1, 0,
             x0, y0, 0, 1,  x1, y1, 1, 0,  x0, y1, 0, 0,
