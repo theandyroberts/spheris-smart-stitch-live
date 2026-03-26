@@ -181,6 +181,26 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         gridWin.makeKeyAndOrderFront(nil)
         stitchWin.orderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
+
+        // Add View menu with label toggle
+        let viewMenu = NSMenu(title: "View")
+        let labelItem = NSMenuItem(title: "Show Camera Labels", action: #selector(toggleLabels), keyEquivalent: "l")
+        labelItem.keyEquivalentModifierMask = []  // just L, no Cmd
+        viewMenu.addItem(labelItem)
+        let viewMenuItem = NSMenuItem(title: "View", action: nil, keyEquivalent: "")
+        viewMenuItem.submenu = viewMenu
+        NSApp.mainMenu?.addItem(viewMenuItem)
+    }
+
+    @objc private func toggleLabels() {
+        let newState: Bool
+        if let gv = gridView {
+            newState = !gv.showLabels
+            gv.showLabels = newState
+        } else {
+            newState = true
+        }
+        stitchView?.showLabels = newState
     }
 
     // MARK: - Calibration switching

@@ -24,6 +24,9 @@ public final class StitchDisplayView: MTKView, @unchecked Sendable {
     // Streaming frame capture
     public var frameGrabber: FrameGrabber?
 
+    // Label visibility (off by default for director view)
+    public var showLabels: Bool = false
+
     /// cameraLabels: array of (label, normalizedU, normalizedV)
     public init(frame: CGRect, metalDevice: MTLDevice, remapTexture: MTLTexture,
                 cameraLabels: [(String, Float, Float)] = []) {
@@ -303,8 +306,8 @@ public final class StitchDisplayView: MTKView, @unchecked Sendable {
         }
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
 
-        // Pass 2: Camera labels
-        if let overlayPipe = overlayPipeline, let vb = overlayVertexBuffer, !labelTextures.isEmpty {
+        // Pass 2: Camera labels (toggled via showLabels)
+        if showLabels, let overlayPipe = overlayPipeline, let vb = overlayVertexBuffer, !labelTextures.isEmpty {
             encoder.setRenderPipelineState(overlayPipe)
             encoder.setVertexBuffer(vb, offset: 0, index: 0)
             for (i, tex) in labelTextures.enumerated() {

@@ -32,6 +32,9 @@ public final class GridDisplayView: MTKView, @unchecked Sendable {
     // Camera names matching grid slot order: G H J / A B C / D E F
     private let cameraNames = ["CAM G", "CAM H", "CAM J", "CAM A", "CAM B", "CAM C", "CAM D", "CAM E", "CAM F"]
 
+    // Label visibility (off by default)
+    public var showLabels: Bool = false
+
     // RED overlay simulator
     private var overlaySimulator: OverlaySimulator?
     private var overlayBarVertexBuffer: MTLBuffer?
@@ -413,21 +416,22 @@ public final class GridDisplayView: MTKView, @unchecked Sendable {
             }
         }
 
-        // Pass 2: Draw overlay quads
-        encoder.setRenderPipelineState(overlayPipeline)
-        encoder.setVertexBuffer(overlayVertexBuffer, offset: 0, index: 0)
+        // Pass 2: Draw overlay quads (camera labels, toggled via showLabels)
+        if showLabels {
+            encoder.setRenderPipelineState(overlayPipeline)
+            encoder.setVertexBuffer(overlayVertexBuffer, offset: 0, index: 0)
 
-        // Camera labels (one per cell)
-        for slot in 0..<(gridRows * gridCols) {
-            guard currentTextures[slot] != nil else { continue }
+            for slot in 0..<(gridRows * gridCols) {
+                guard currentTextures[slot] != nil else { continue }
 
-            if let labelTex = cameraLabelTextures[slot] {
-                encoder.setFragmentTexture(labelTex, index: 0)
-                encoder.drawPrimitives(
-                    type: .triangle,
-                    vertexStart: slot * verticesPerQuad,
-                    vertexCount: verticesPerQuad
-                )
+                if let labelTex = cameraLabelTextures[slot] {
+                    encoder.setFragmentTexture(labelTex, index: 0)
+                    encoder.drawPrimitives(
+                        type: .triangle,
+                        vertexStart: slot * verticesPerQuad,
+                        vertexCount: verticesPerQuad
+                    )
+                }
             }
         }
 
@@ -450,8 +454,8 @@ public final class GridDisplayView: MTKView, @unchecked Sendable {
             }
         }
 
-        // Single timecode on CAM B
-        if currentTextures[timecodeSlot] != nil, let tcTex = timecodeTexture {
+        // Single timecode on CAM B (follows label toggle)
+        if showLabels, currentTextures[timecodeSlot] != nil, let tcTex = timecodeTexture {
             encoder.setFragmentTexture(tcTex, index: 0)
             encoder.drawPrimitives(
                 type: .triangle,
