@@ -1,0 +1,40 @@
+# /etc/nginx/sites-enabled/stream.sparkpoint.studio
+
+server {
+    server_name stream.sparkpoint.studio;
+
+    listen 443 ssl;
+    ssl_certificate /etc/letsencrypt/live/stream.sparkpoint.studio/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/stream.sparkpoint.studio/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf;
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem;
+
+    # HLS segments
+    location /hls/ {
+        alias /var/www/stream/hls/;
+        types {
+            application/vnd.apple.mpegurl m3u8;
+            video/mp2t ts;
+        }
+        add_header Cache-Control "no-cache";
+        add_header Access-Control-Allow-Origin *;
+    }
+
+    # Everything else goes to the Flask app
+    location / {
+        proxy_pass http://127.0.0.1:5000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+server {
+    if ($host = stream.sparkpoint.studio) {
+        return 301 https://$host$request_uri;
+    }
+    listen 80;
+    server_name stream.sparkpoint.studio;
+    return 404;
+}
