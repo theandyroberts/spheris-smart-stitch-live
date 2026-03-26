@@ -125,11 +125,19 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         self.stitchWindow = stitchWin
         self.stitchView = sv
 
+        // ── Set up crop engine and overlay simulator ──
+        let cropEngine = CropEngine()
+        let refDir = projectDir.appendingPathComponent("reference")
+        if let simulator = OverlaySimulator(device: device, referenceDir: refDir) {
+            gv.setOverlaySimulator(simulator)
+        }
+
         // ── Set up file providers ──
         let clipDir = projectDir.appendingPathComponent("Roll02_Clip09")
         let router = VideoInputRouter()
         router.setDisplayView(gv)
         router.setStitchView(sv)
+        router.setCropEngine(cropEngine)
 
         for (slotIndex, cameraID) in gridSlotCameraIDs.enumerated() {
             guard let cam = calibration.camera(forID: cameraID) else { continue }

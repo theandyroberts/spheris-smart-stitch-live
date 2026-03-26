@@ -172,6 +172,100 @@ public final class StitchDisplayView: MTKView, @unchecked Sendable {
         return tex
     }
 
+    // MARK: - Metadata status
+
+    private var tallyState: CropEngine.TallyState = .idle
+    private var tallyTexture: MTLTexture?
+    private var tallyVertexBuffer: MTLBuffer?
+    private var bottomBarTexture: MTLTexture?
+    private var bottomBarCVTexture: CVMetalTexture?
+    private var bottomBarVertexBuffer: MTLBuffer?
+
+    /// Update metadata crops from the CropEngine output.
+    public func updateMetadata(tallyCrops: [Int: CVPixelBuffer], bottomBarCrops: [Int: CVPixelBuffer]) {
+        guard let device = self.device, let cache = textureCache else { return }
+
+        // Use slot 0 (first available camera) for metadata display
+        if let tallyCrop = tallyCrops.values.first {
+            let newState = CropEngine.detectTallyState(from: tallyCrop)
+            if newState != tallyState {
+                tallyState = newState
+                tallyTexture = makeTallyTexture(state: newState, device: device)
+                buildTallyVertices(device: device)
+            }
+        }
+
+        // Display bottom bar from first available camera
+        if let barCrop = bottomBarCrops.values.first {
+            let w = CVPixelBufferGetWidth(barCrop)
+            let h = CVPixelBufferGetHeight(barCrop)
+            var cvTex: CVMetalTexture?
+            if CVMetalTextureCacheCreateTextureFromImage(nil, cache, barCrop, nil, .bgra8Unorm, w, h, 0, &cvTex) == kCVReturnSuccess,
+               let tex = cvTex {
+                bottomBarCVTexture = tex
+                bottomBarTexture = CVMetalTextureGetTexture(tex)
+                if bottomBarVertexBuffer == nil { buildBottomBarVertices(device: device) }
+            }
+        }
+    }
+
+    private func makeTallyTexture(state: CropEngine.TallyState, device: MTLDevice) -> MTLTexture? {
+        let size = 32
+        let bpr = size * 4
+        var pixels = [UInt8](repeating: 0, count: size * size * 4)
+
+        let (r, g, b): (UInt8, UInt8, UInt8) = {
+            switch state {
+            case .recording: return (0, 0, 220)     // BGRA: blue=0, green=0, red=220
+            case .transferring: return (0, 210, 230) // BGRA: blue=0, green=210, red=230
+            case .idle: return (80, 80, 80)
+            }
+        }()
+
+        let center = size / 2
+        let radius = size / 2 - 2
+        for y in 0..<size {
+            for x in 0..<size {
+                let dx = x - center, dy = y - center
+                if dx*dx + dy*dy <= radius*radius {
+                    let i = (y * size + x) * 4
+                    pixels[i] = b      // B
+                    pixels[i+1] = g    // G
+                    pixels[i+2] = r    // R
+                    pixels[i+3] = 255  // A
+                }
+            }
+        }
+
+        let desc = MTLTextureDescriptor.texture2DDescriptor(pixelFormat: .bgra8Unorm, width: size, height: size, mipmapped: false)
+        desc.usage = .shaderRead
+        let tex = device.makeTexture(descriptor: desc)
+        tex?.replace(region: MTLRegionMake2D(0, 0, size, size), mipmapLevel: 0, withBytes: pixels, bytesPerRow: bpr)
+        return tex
+    }
+
+    private func buildTallyVertices(device: MTLDevice) {
+        // Position tally dot in bottom-left corner of stitch view
+        let x0: Float = -0.98, x1: Float = -0.94
+        let y0: Float = -0.98, y1: Float = -0.92
+        let verts: [Float] = [
+            x0, y0, 0, 1,  x1, y0, 1, 1,  x1, y1, 1, 0,
+            x0, y0, 0, 1,  x1, y1, 1, 0,  x0, y1, 0, 0,
+        ]
+        tallyVertexBuffer = device.makeBuffer(bytes: verts, length: verts.count * MemoryLayout<Float>.size, options: .storageModeShared)
+    }
+
+    private func buildBottomBarVertices(device: MTLDevice) {
+        // Render bottom bar strip across bottom of stitch view
+        let x0: Float = -0.92, x1: Float = 0.98
+        let y0: Float = -0.98, y1: Float = -0.92
+        let verts: [Float] = [
+            x0, y0, 0, 1,  x1, y0, 1, 1,  x1, y1, 1, 0,
+            x0, y0, 0, 1,  x1, y1, 1, 0,  x0, y1, 0, 0,
+        ]
+        bottomBarVertexBuffer = device.makeBuffer(bytes: verts, length: verts.count * MemoryLayout<Float>.size, options: .storageModeShared)
+    }
+
     // MARK: - Frame delivery
 
     public func updateFrames(_ buffers: [Int: CVPixelBuffer]) {
@@ -216,6 +310,21 @@ public final class StitchDisplayView: MTKView, @unchecked Sendable {
             for (i, tex) in labelTextures.enumerated() {
                 encoder.setFragmentTexture(tex, index: 0)
                 encoder.drawPrimitives(type: .triangle, vertexStart: i * 6, vertexCount: 6)
+            }
+        }
+
+        // Pass 3: Metadata status bar (tally dot + bottom bar crop)
+        if let overlayPipe = overlayPipeline {
+            encoder.setRenderPipelineState(overlayPipe)
+            if let tallyTex = tallyTexture, let tallyVB = tallyVertexBuffer {
+                encoder.setVertexBuffer(tallyVB, offset: 0, index: 0)
+                encoder.setFragmentTexture(tallyTex, index: 0)
+                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
+            }
+            if let barTex = bottomBarTexture, let barVB = bottomBarVertexBuffer {
+                encoder.setVertexBuffer(barVB, offset: 0, index: 0)
+                encoder.setFragmentTexture(barTex, index: 0)
+                encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 6)
             }
         }
 

@@ -32,6 +32,16 @@ public final class GridDisplayView: MTKView, @unchecked Sendable {
     // Camera names matching grid slot order: G H J / A B C / D E F
     private let cameraNames = ["CAM G", "CAM H", "CAM J", "CAM A", "CAM B", "CAM C", "CAM D", "CAM E", "CAM F"]
 
+    // RED overlay simulator
+    private var overlaySimulator: OverlaySimulator?
+    private var overlayBarVertexBuffer: MTLBuffer?
+    private var overlayTallyState: CropEngine.TallyState = .idle
+
+    public func setOverlaySimulator(_ sim: OverlaySimulator) {
+        self.overlaySimulator = sim
+        buildOverlayBarVertices()
+    }
+
     public init(frame: CGRect, metalDevice: MTLDevice) {
         super.init(frame: frame, device: metalDevice)
         colorPixelFormat = .bgra8Unorm
@@ -202,6 +212,46 @@ public final class GridDisplayView: MTKView, @unchecked Sendable {
             length: vertices.count * MemoryLayout<Float>.size,
             options: .storageModeShared
         )
+    }
+
+    // MARK: - RED Overlay bar vertices
+
+    /// Build vertex quads for the top and bottom overlay bars on each grid cell.
+    /// Layout: 9 top-bar quads followed by 9 bottom-bar quads = 18 quads total.
+    private func buildOverlayBarVertices() {
+        guard let device = self.device else { return }
+        let cellW: Float = 2.0 / Float(gridCols)
+        let cellH: Float = 2.0 / Float(gridRows)
+        let topFrac: Float = Float(CropEngine.topBarHeight) / 1080.0   // 53/1080
+        let botFrac: Float = Float(CropEngine.bottomBarHeight) / 1080.0 // 51/1080
+
+        var vertices: [Float] = []
+        // Top bars for 9 cells
+        for row in 0..<gridRows {
+            for col in 0..<gridCols {
+                let x0 = -1.0 + Float(col) * cellW
+                let x1 = x0 + cellW
+                let y1 = 1.0 - Float(row) * cellH           // cell top
+                let y0 = y1 - cellH * topFrac                // bar bottom
+                // pos.xy, tex.uv
+                vertices += [x0, y0, 0, 1,  x1, y0, 1, 1,  x1, y1, 1, 0]
+                vertices += [x0, y0, 0, 1,  x1, y1, 1, 0,  x0, y1, 0, 0]
+            }
+        }
+        // Bottom bars for 9 cells
+        for row in 0..<gridRows {
+            for col in 0..<gridCols {
+                let x0 = -1.0 + Float(col) * cellW
+                let x1 = x0 + cellW
+                let y0 = 1.0 - Float(row + 1) * cellH        // cell bottom
+                let y1 = y0 + cellH * botFrac                 // bar top
+                vertices += [x0, y0, 0, 1,  x1, y0, 1, 1,  x1, y1, 1, 0]
+                vertices += [x0, y0, 0, 1,  x1, y1, 1, 0,  x0, y1, 0, 0]
+            }
+        }
+        overlayBarVertexBuffer = device.makeBuffer(
+            bytes: vertices, length: vertices.count * MemoryLayout<Float>.size,
+            options: .storageModeShared)
     }
 
     // MARK: - Text rendering via Core Graphics
@@ -378,6 +428,25 @@ public final class GridDisplayView: MTKView, @unchecked Sendable {
                     vertexStart: slot * verticesPerQuad,
                     vertexCount: verticesPerQuad
                 )
+            }
+        }
+
+        // Pass 3: RED overlay bars (simulator)
+        if let sim = overlaySimulator, let barVB = overlayBarVertexBuffer {
+            let bars = sim.bars(for: overlayTallyState)
+            encoder.setRenderPipelineState(videoPipeline)  // opaque pipeline for dark bars
+            encoder.setVertexBuffer(barVB, offset: 0, index: 0)
+            // Top bars: 9 quads starting at vertex 0
+            encoder.setFragmentTexture(bars.topBar, index: 0)
+            for slot in 0..<(gridRows * gridCols) {
+                guard currentTextures[slot] != nil else { continue }
+                encoder.drawPrimitives(type: .triangle, vertexStart: slot * verticesPerQuad, vertexCount: verticesPerQuad)
+            }
+            // Bottom bars: 9 quads starting at vertex 9*6=54
+            encoder.setFragmentTexture(bars.bottomBar, index: 0)
+            for slot in 0..<(gridRows * gridCols) {
+                guard currentTextures[slot] != nil else { continue }
+                encoder.drawPrimitives(type: .triangle, vertexStart: (9 + slot) * verticesPerQuad, vertexCount: verticesPerQuad)
             }
         }
 

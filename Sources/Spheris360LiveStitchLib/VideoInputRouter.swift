@@ -3,6 +3,14 @@ import CoreVideo
 import Foundation
 import QuartzCore
 
+/// Wrapper to shuttle CVPixelBuffer dicts across isolation boundaries.
+private struct FramePayload: @unchecked Sendable {
+    let originals: [Int: CVPixelBuffer]
+    let cleans: [Int: CVPixelBuffer]
+    let tallyCrops: [Int: CVPixelBuffer]
+    let bottomBarCrops: [Int: CVPixelBuffer]
+}
+
 public final class VideoInputRouter: @unchecked Sendable {
     public static let slotCount = 9
 
@@ -12,6 +20,7 @@ public final class VideoInputRouter: @unchecked Sendable {
     private weak var displayView: GridDisplayView?
     private weak var stitchView: StitchDisplayView?
 
+    private var cropEngine: CropEngine?
     private var frameInterval: Double = 1.0 / 24.0
     private var accumulatedTime: Double = 0.0
     private var lastTimestamp: Double = 0.0
@@ -34,6 +43,10 @@ public final class VideoInputRouter: @unchecked Sendable {
 
     public func setStitchView(_ view: StitchDisplayView) {
         lock.lock(); self.stitchView = view; lock.unlock()
+    }
+
+    public func setCropEngine(_ engine: CropEngine) {
+        lock.lock(); self.cropEngine = engine; lock.unlock()
     }
 
     public func startAll() throws {
@@ -92,23 +105,39 @@ public final class VideoInputRouter: @unchecked Sendable {
         }
 
         // Pull one frame from each and display
-        var buffers: [Int: CVPixelBuffer] = [:]
-        for provider in providersCopy {
-            guard let provider = provider, provider.isReady else { continue }
-            if let pb = provider.copyNextPixelBuffer() {
-                buffers[provider.slotIndex] = pb
-            }
-        }
+        var originalBuffers: [Int: CVPixelBuffer] = [:]
+        var cleanBuffers: [Int: CVPixelBuffer] = [:]
+        var tallyCrops: [Int: CVPixelBuffer] = [:]
+        var bottomBarCrops: [Int: CVPixelBuffer] = [:]
 
         lock.lock()
+        let engine = cropEngine
         let currentFrame = frameNumber
         let view = displayView
         let stitch = stitchView
         lock.unlock()
 
+        for provider in providersCopy {
+            guard let provider = provider, provider.isReady else { continue }
+            if let pb = provider.copyNextPixelBuffer() {
+                let slot = provider.slotIndex
+                originalBuffers[slot] = pb
+                if let engine = engine, let cropped = engine.process(pb) {
+                    cleanBuffers[slot] = cropped.cleanFrame
+                    tallyCrops[slot] = cropped.tallyCrop
+                    bottomBarCrops[slot] = cropped.bottomBarCrop
+                } else {
+                    cleanBuffers[slot] = pb
+                }
+            }
+        }
+
+        let payload = FramePayload(originals: originalBuffers, cleans: cleanBuffers,
+                                    tallyCrops: tallyCrops, bottomBarCrops: bottomBarCrops)
         DispatchQueue.main.async {
-            view?.updateFrames(buffers, frameNumber: currentFrame)
-            stitch?.updateFrames(buffers)
+            view?.updateFrames(payload.originals, frameNumber: currentFrame)
+            stitch?.updateFrames(payload.cleans)
+            stitch?.updateMetadata(tallyCrops: payload.tallyCrops, bottomBarCrops: payload.bottomBarCrops)
         }
     }
 
@@ -164,19 +193,38 @@ public final class VideoInputRouter: @unchecked Sendable {
         let stitch = self.stitchView
         lock.unlock()
 
-        var buffers: [Int: CVPixelBuffer] = [:]
+        var originalBuffers: [Int: CVPixelBuffer] = [:]
+        var cleanBuffers: [Int: CVPixelBuffer] = [:]
+        var tallyCrops: [Int: CVPixelBuffer] = [:]
+        var bottomBarCrops: [Int: CVPixelBuffer] = [:]
+
+        lock.lock()
+        let engine = cropEngine
+        lock.unlock()
+
         for provider in providers {
             guard let provider = provider, provider.isReady else { continue }
             if let pb = provider.copyNextPixelBuffer() {
-                buffers[provider.slotIndex] = pb
+                let slot = provider.slotIndex
+                originalBuffers[slot] = pb
+                if let engine = engine, let cropped = engine.process(pb) {
+                    cleanBuffers[slot] = cropped.cleanFrame
+                    tallyCrops[slot] = cropped.tallyCrop
+                    bottomBarCrops[slot] = cropped.bottomBarCrop
+                } else {
+                    cleanBuffers[slot] = pb
+                }
             }
         }
 
-        guard !buffers.isEmpty else { return }
+        guard !originalBuffers.isEmpty else { return }
 
+        let payload = FramePayload(originals: originalBuffers, cleans: cleanBuffers,
+                                    tallyCrops: tallyCrops, bottomBarCrops: bottomBarCrops)
         DispatchQueue.main.async {
-            view?.updateFrames(buffers, frameNumber: currentFrame)
-            stitch?.updateFrames(buffers)
+            view?.updateFrames(payload.originals, frameNumber: currentFrame)
+            stitch?.updateFrames(payload.cleans)
+            stitch?.updateMetadata(tallyCrops: payload.tallyCrops, bottomBarCrops: payload.bottomBarCrops)
         }
     }
 }
