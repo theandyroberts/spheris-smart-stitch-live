@@ -24,6 +24,8 @@ app.secret_key = secrets.token_hex(32)
 
 DATA_DIR = Path("/var/www/stream/data")
 DATA_DIR.mkdir(parents=True, exist_ok=True)
+FEEDBACK_DIR = DATA_DIR / "feedback"
+FEEDBACK_DIR.mkdir(parents=True, exist_ok=True)
 
 SHOOT_FILE = DATA_DIR / "shoot.json"
 SESSIONS_FILE = DATA_DIR / "sessions.json"
@@ -103,9 +105,32 @@ def get_feedback():
 
 
 def add_feedback(entry):
+    # Tag with current clip number
+    shoot = get_shoot()
+    entry["clip"] = shoot.get("clip_number", 0)
     fb = get_feedback()
     fb.append(entry)
     save_json(FEEDBACK_FILE, fb)
+
+
+def archive_feedback():
+    """Archive current feedback to a per-clip file and clear the live list."""
+    fb = get_feedback()
+    if not fb:
+        return
+    shoot = get_shoot()
+    clip_num = shoot.get("clip_number", 0)
+    shoot_name = shoot.get("name", "shoot")
+    archive = {
+        "shoot_name": shoot_name,
+        "clip_number": clip_num,
+        "archived": datetime.now(timezone.utc).isoformat(),
+        "feedback": fb,
+    }
+    slug = re.sub(r"[^a-z0-9]+", "-", shoot_name.lower()).strip("-")
+    filename = f"{slug}_clip{clip_num:03d}.json"
+    save_json(FEEDBACK_DIR / filename, archive)
+    save_json(FEEDBACK_FILE, [])
 
 
 # ── Routes ──────────────────────────────────────────────────────────────────
@@ -154,7 +179,8 @@ def watch():
     return render_template_string(WATCH_HTML,
         shoot_name=shoot.get("name", "Spheris Live"),
         email=session["email"],
-        stream_active=shoot.get("stream_active", False))
+        stream_active=shoot.get("stream_active", False),
+        clip_number=shoot.get("clip_number", 0))
 
 
 @app.route("/logout")
@@ -230,6 +256,22 @@ def admin_list_sessions():
     return jsonify(active)
 
 
+@app.route("/api/admin/feedback", methods=["GET"])
+def admin_feedback():
+    """List archived feedback. Optional ?clip=N to filter by clip."""
+    key = request.headers.get("X-Api-Key", "")
+    if key != os.environ.get("SPHERIS_ADMIN_KEY", "spheris-admin-dev"):
+        abort(403)
+    clip_filter = request.args.get("clip")
+    archives = []
+    for f in sorted(FEEDBACK_DIR.glob("*.json")):
+        data = load_json(f, {})
+        if clip_filter and str(data.get("clip_number")) != clip_filter:
+            continue
+        archives.append(data)
+    return jsonify(archives)
+
+
 @app.route("/api/admin/revoke", methods=["POST"])
 def admin_revoke():
     """Revoke a session by email."""
@@ -261,8 +303,12 @@ def auth_check():
 
 @app.route("/api/internal/stream-start", methods=["POST"])
 def stream_start():
+    # Archive previous clip's feedback, then start a new clip
+    archive_feedback()
     shoot = get_shoot()
     shoot["stream_active"] = True
+    shoot["clip_number"] = shoot.get("clip_number", 0) + 1
+    shoot["clip_started"] = datetime.now(timezone.utc).isoformat()
     save_shoot(shoot)
     return "", 200
 
@@ -356,7 +402,7 @@ WATCH_HTML = """<!DOCTYPE html>
 </head>
 <body>
 <div class="header">
-  <h1>SPHERIS 360 — {{ shoot_name }}</h1>
+  <h1>SPHERIS 360 — {{ shoot_name }}{% if clip_number %} — Clip {{ clip_number }}{% endif %}</h1>
   <span class="user">{{ email }} &nbsp; <a href="/logout">logout</a></span>
 </div>
 

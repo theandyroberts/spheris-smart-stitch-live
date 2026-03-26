@@ -99,7 +99,12 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         self.gridView = gv
 
         // ── Window 2: Stitched Equirectangular ──
-        let stitchRect = NSRect(x: 50, y: 50, width: 1280, height: 640)
+        let screen = NSScreen.main?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1920, height: 1080)
+        let stitchW = min(screen.width - 40, 2560)          // leave 20 px margin each side
+        let stitchH = stitchW / 2                            // 2:1 equirectangular
+        let stitchX = screen.origin.x + (screen.width - stitchW) / 2
+        let stitchY = screen.origin.y + 20                   // near bottom of screen
+        let stitchRect = NSRect(x: stitchX, y: stitchY, width: stitchW, height: stitchH)
         let stitchWin = NSWindow(
             contentRect: stitchRect,
             styleMask: [.titled, .closable, .resizable, .miniaturizable],
