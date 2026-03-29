@@ -1,6 +1,6 @@
 {
   "rig_name": "Spheris 9-Cam Ground Rig",
-  "created": "2026-03-24T23:53:54.093934+00:00",
+  "created": "2026-03-28T21:05:29.313771+00:00",
   "tool": "spheris-calibrate v0.2",
   "sensor": {
     "width_mm": 22.56,
@@ -14,7 +14,7 @@
   "cameras": [
     {
       "id": "A",
-      "image_file": "A002_A009_032364",
+      "image_file": "A002_A002_0323OJ",
       "group": "horizontal",
       "lens": "Laowa 12mm Cine",
       "image_size": [
@@ -26,9 +26,9 @@
       "focal_length_mm": 12.0,
       "fov_h_deg": 86.46,
       "fov_v_deg": 52.74,
-      "yaw_deg": -100.5289,
-      "pitch_deg": -17.7594,
-      "roll_deg": 1.8784,
+      "yaw_deg": -91.2569,
+      "pitch_deg": 11.8024,
+      "roll_deg": -5.0096,
       "distortion": {
         "a": 0.0,
         "b": 0.0,
@@ -43,7 +43,7 @@
     },
     {
       "id": "B",
-      "image_file": "B002_B009_1217VA",
+      "image_file": "B002_B002_1217M0",
       "group": "horizontal",
       "lens": "Laowa 12mm Cine",
       "image_size": [
@@ -55,9 +55,9 @@
       "focal_length_mm": 12.0,
       "fov_h_deg": 86.46,
       "fov_v_deg": 52.74,
-      "yaw_deg": -41.269,
-      "pitch_deg": -18.1662,
-      "roll_deg": -7.5784,
+      "yaw_deg": -29.1721,
+      "pitch_deg": 10.9474,
+      "roll_deg": 5.0045,
       "distortion": {
         "a": 0.0,
         "b": 0.0,
@@ -72,7 +72,7 @@
     },
     {
       "id": "C",
-      "image_file": "C002_C009_0323FG",
+      "image_file": "C002_C002_0323EC",
       "group": "horizontal",
       "lens": "Laowa 12mm Cine",
       "image_size": [
@@ -84,9 +84,9 @@
       "focal_length_mm": 12.0,
       "fov_h_deg": 86.46,
       "fov_v_deg": 52.74,
-      "yaw_deg": 15.8783,
-      "pitch_deg": -14.4303,
-      "roll_deg": 6.3015,
+      "yaw_deg": 28.2721,
+      "pitch_deg": 6.8816,
+      "roll_deg": -4.6952,
       "distortion": {
         "a": 0.0,
         "b": 0.0,
@@ -101,7 +101,7 @@
     },
     {
       "id": "D",
-      "image_file": "D002_D009_0709XG",
+      "image_file": "D002_D002_0709KG",
       "group": "horizontal",
       "lens": "Laowa 12mm Cine",
       "image_size": [
@@ -113,9 +113,9 @@
       "focal_length_mm": 12.0,
       "fov_h_deg": 86.46,
       "fov_v_deg": 52.74,
-      "yaw_deg": 73.6077,
-      "pitch_deg": -20.5633,
-      "roll_deg": -0.5053,
+      "yaw_deg": 87.5143,
+      "pitch_deg": 6.9066,
+      "roll_deg": -2.7254,
       "distortion": {
         "a": 0.0,
         "b": 0.0,
@@ -130,7 +130,7 @@
     },
     {
       "id": "E",
-      "image_file": "E002_E009_032305",
+      "image_file": "E002_E002_03234Y",
       "group": "horizontal",
       "lens": "Laowa 12mm Cine",
       "image_size": [
@@ -142,9 +142,9 @@
       "focal_length_mm": 12.0,
       "fov_h_deg": 86.46,
       "fov_v_deg": 52.74,
-      "yaw_deg": 132.5163,
-      "pitch_deg": -19.0858,
-      "roll_deg": -4.8063,
+      "yaw_deg": 146.6524,
+      "pitch_deg": 7.6534,
+      "roll_deg": 2.6948,
       "distortion": {
         "a": 0.0,
         "b": 0.0,
@@ -159,7 +159,7 @@
     },
     {
       "id": "F",
-      "image_file": "F002_F009_0323XK",
+      "image_file": "F002_F002_03231G",
       "group": "horizontal",
       "lens": "Laowa 12mm Cine",
       "image_size": [
@@ -171,9 +171,9 @@
       "focal_length_mm": 12.0,
       "fov_h_deg": 86.46,
       "fov_v_deg": 52.74,
-      "yaw_deg": -161.7786,
-      "pitch_deg": -18.385,
-      "roll_deg": 3.517,
+      "yaw_deg": -151.3482,
+      "pitch_deg": 10.2085,
+      "roll_deg": -2.8134,
       "distortion": {
         "a": 0.0,
         "b": 0.0,
@@ -188,7 +188,7 @@
     },
     {
       "id": "G",
-      "image_file": "G002_G009_0323WD",
+      "image_file": "G002_G002_0323H1",
       "group": "upward",
       "lens": "Laowa 9mm Cine",
       "image_size": [
@@ -200,7 +200,7 @@
       "focal_length_mm": 9.0,
       "fov_h_deg": 102.83,
       "fov_v_deg": 66.92,
-      "yaw_deg": -101.1922,
+      "yaw_deg": -92.4591,
       "pitch_deg": 54.83,
       "roll_deg": 0.0,
       "distortion": {
@@ -217,7 +217,7 @@
     },
     {
       "id": "H",
-      "image_file": "H002_H009_0322W3",
+      "image_file": "H002_H002_0322KE",
       "group": "upward",
       "lens": "Laowa 9mm Cine",
       "image_size": [
@@ -229,7 +229,7 @@
       "focal_length_mm": 9.0,
       "fov_h_deg": 102.83,
       "fov_v_deg": 66.92,
-      "yaw_deg": 16.0724,
+      "yaw_deg": 28.8714,
       "pitch_deg": 54.83,
       "roll_deg": 0.0,
       "distortion": {
@@ -246,7 +246,7 @@
     },
     {
       "id": "J",
-      "image_file": "J002_J009_0323V7",
+      "image_file": "J002_J002_03239I",
       "group": "upward",
       "lens": "Laowa 9mm Cine",
       "image_size": [
@@ -258,7 +258,7 @@
       "focal_length_mm": 9.0,
       "fov_h_deg": 102.83,
       "fov_v_deg": 66.92,
-      "yaw_deg": 134.7818,
+      "yaw_deg": 146.1395,
       "pitch_deg": 54.83,
       "roll_deg": 0.0,
       "distortion": {

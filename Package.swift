@@ -12,6 +12,9 @@ let package = Package(
                 .process("GridShaders.metal"),
                 .process("RemapCompute.metal"),
                 .process("StitchShaders.metal"),
+                .process("VirtualCameraShaders.metal"),
+                .process("VehicleShaders.metal"),
+                .copy("Assets"),
             ]
         ),
         .executableTarget(

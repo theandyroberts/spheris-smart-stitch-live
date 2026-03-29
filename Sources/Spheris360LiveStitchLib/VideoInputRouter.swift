@@ -19,6 +19,7 @@ public final class VideoInputRouter: @unchecked Sendable {
     private var displayLink: CVDisplayLink?
     private weak var displayView: GridDisplayView?
     private weak var stitchView: StitchDisplayView?
+    private weak var vcamView: VirtualCameraView?
 
     private var cropEngine: CropEngine?
     private var frameInterval: Double = 1.0 / 24.0
@@ -43,6 +44,10 @@ public final class VideoInputRouter: @unchecked Sendable {
 
     public func setStitchView(_ view: StitchDisplayView) {
         lock.lock(); self.stitchView = view; lock.unlock()
+    }
+
+    public func setVirtualCameraView(_ view: VirtualCameraView) {
+        lock.lock(); self.vcamView = view; lock.unlock()
     }
 
     public func setCropEngine(_ engine: CropEngine) {
@@ -115,6 +120,7 @@ public final class VideoInputRouter: @unchecked Sendable {
         let currentFrame = frameNumber
         let view = displayView
         let stitch = stitchView
+        let vcam = vcamView
         lock.unlock()
 
         for provider in providersCopy {
@@ -138,6 +144,7 @@ public final class VideoInputRouter: @unchecked Sendable {
             view?.updateFrames(payload.originals, frameNumber: currentFrame)
             stitch?.updateFrames(payload.cleans)
             stitch?.updateMetadata(tallyCrops: payload.tallyCrops, bottomBarCrops: payload.bottomBarCrops)
+            vcam?.updateFrames(payload.cleans)
         }
     }
 
@@ -191,6 +198,7 @@ public final class VideoInputRouter: @unchecked Sendable {
         let currentFrame = frameNumber
         let view = self.displayView
         let stitch = self.stitchView
+        let vcam = self.vcamView
         lock.unlock()
 
         var originalBuffers: [Int: CVPixelBuffer] = [:]
@@ -225,6 +233,7 @@ public final class VideoInputRouter: @unchecked Sendable {
             view?.updateFrames(payload.originals, frameNumber: currentFrame)
             stitch?.updateFrames(payload.cleans)
             stitch?.updateMetadata(tallyCrops: payload.tallyCrops, bottomBarCrops: payload.bottomBarCrops)
+            vcam?.updateFrames(payload.cleans)
         }
     }
 }

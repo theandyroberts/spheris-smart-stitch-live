@@ -57,7 +57,7 @@ public final class FrameGrabber: @unchecked Sendable {
     }
 
     /// Called from StitchDisplayView.draw() after the stitch render pass.
-    /// Copies the full drawable at native resolution; ffmpeg handles scaling.
+    /// Always captures at the fixed stream resolution to prevent ffmpeg size mismatches.
     public func captureIfNeeded(commandBuffer: MTLCommandBuffer, sourceTexture: MTLTexture) {
         lock.lock()
         guard _enabled else { lock.unlock(); return }
@@ -66,31 +66,39 @@ public final class FrameGrabber: @unchecked Sendable {
         lastGrabTime = now
         lock.unlock()
 
-        let srcW = sourceTexture.width
-        let srcH = sourceTexture.height
-        ensureStagingTexture(width: srcW, height: srcH)
+        // Always use the fixed stream resolution, not the drawable size
+        let outW = streamWidth
+        let outH = streamHeight
+        ensureStagingTexture(width: outW, height: outH)
         guard let staging = stagingTexture else { return }
 
+        let srcW = sourceTexture.width
+        let srcH = sourceTexture.height
+
+        // If source matches stream size, blit directly; otherwise copy what fits
+        // (ffmpeg -vf scale handles the rest, but we need consistent output size)
         guard let blit = commandBuffer.makeBlitCommandEncoder() else { return }
+        let copyW = min(srcW, outW)
+        let copyH = min(srcH, outH)
         blit.copy(from: sourceTexture, sourceSlice: 0, sourceLevel: 0,
                   sourceOrigin: MTLOrigin(x: 0, y: 0, z: 0),
-                  sourceSize: MTLSize(width: srcW, height: srcH, depth: 1),
+                  sourceSize: MTLSize(width: copyW, height: copyH, depth: 1),
                   to: staging, destinationSlice: 0, destinationLevel: 0,
                   destinationOrigin: MTLOrigin(x: 0, y: 0, z: 0))
         blit.synchronize(resource: staging)
         blit.endEncoding()
 
-        let bpr = srcW * 4
+        let bpr = outW * 4
         let callback = onFrame
 
         commandBuffer.addCompletedHandler { _ in
             self.grabQueue.async {
-                var pixelData = Data(count: bpr * srcH)
+                var pixelData = Data(count: bpr * outH)
                 pixelData.withUnsafeMutableBytes { ptr in
                     staging.getBytes(ptr.baseAddress!, bytesPerRow: bpr,
-                                     from: MTLRegionMake2D(0, 0, srcW, srcH), mipmapLevel: 0)
+                                     from: MTLRegionMake2D(0, 0, outW, outH), mipmapLevel: 0)
                 }
-                callback?(pixelData, srcW, srcH)
+                callback?(pixelData, outW, outH)
             }
         }
     }

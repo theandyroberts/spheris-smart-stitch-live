@@ -17,6 +17,19 @@ public final class StitchDisplayView: MTKView, @unchecked Sendable {
     private var sourceTextures: [Int: MTLTexture] = [:]
     private var sourceCVTextures: [Int: CVMetalTexture] = [:]
 
+    // Color grading
+    private var lutTexture: MTLTexture?
+    private var uniformBuffer: MTLBuffer?
+    public var lutEnabled: Bool = false
+    public var exposure: Float = 0  // stops
+
+    private struct GradeUniforms {
+        var lutEnabled: UInt32
+        var exposure: Float
+        var drawableW: UInt32
+        var drawableH: UInt32
+    }
+
     // Camera label overlays
     private var labelTextures: [MTLTexture] = []
     private let cameraCount = 9
@@ -29,8 +42,9 @@ public final class StitchDisplayView: MTKView, @unchecked Sendable {
 
     /// cameraLabels: array of (label, normalizedU, normalizedV)
     public init(frame: CGRect, metalDevice: MTLDevice, remapTexture: MTLTexture,
-                cameraLabels: [(String, Float, Float)] = []) {
+                cameraLabels: [(String, Float, Float)] = [], lutTexture: MTLTexture? = nil) {
         self.remapTexture = remapTexture
+        self.lutTexture = lutTexture
         super.init(frame: frame, device: metalDevice)
         colorPixelFormat = .bgra8Unorm
         clearColor = MTLClearColor(red: 0, green: 0, blue: 0, alpha: 1)
@@ -92,8 +106,15 @@ public final class StitchDisplayView: MTKView, @unchecked Sendable {
         overlayDesc.colorAttachments[0].destinationAlphaBlendFactor = .oneMinusSourceAlpha
         overlayPipeline = try! device.makeRenderPipelineState(descriptor: overlayDesc)
 
+        uniformBuffer = device.makeBuffer(length: MemoryLayout<GradeUniforms>.size, options: .storageModeShared)
+
         // Build label textures and vertex buffer
         buildLabels(cameraLabels, device: device)
+    }
+
+    /// Set or replace the 3D LUT texture for color grading.
+    public func setLUT(_ texture: MTLTexture?) {
+        self.lutTexture = texture
     }
 
     // MARK: - Runtime calibration swap
@@ -298,11 +319,27 @@ public final class StitchDisplayView: MTKView, @unchecked Sendable {
 
         // Pass 1: Stitch composite
         encoder.setRenderPipelineState(stitchPipe)
+
+        // Grade uniforms
+        if let uBuf = uniformBuffer {
+            var u = GradeUniforms(
+                lutEnabled: lutEnabled && lutTexture != nil ? 1 : 0,
+                exposure: exposure,
+                drawableW: UInt32(drawableSize.width),
+                drawableH: UInt32(drawableSize.height)
+            )
+            memcpy(uBuf.contents(), &u, MemoryLayout<GradeUniforms>.size)
+            encoder.setFragmentBuffer(uBuf, offset: 0, index: 0)
+        }
+
         encoder.setFragmentTexture(remap, index: 0)
         for i in 0..<cameraCount {
             if let src = sourceTextures[i] {
                 encoder.setFragmentTexture(src, index: 1 + i)
             }
+        }
+        if let lut = lutTexture {
+            encoder.setFragmentTexture(lut, index: 10)
         }
         encoder.drawPrimitives(type: .triangle, vertexStart: 0, vertexCount: 3)
 

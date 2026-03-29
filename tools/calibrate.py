@@ -43,15 +43,15 @@ SENSOR_HEIGHT_MM = 11.88
 # ── Camera rig topology ─────────────────────────────────────────────────────
 
 CAMERAS = [
-    {"id": "A", "type": "horizontal", "yaw": 0,   "pitch": 0, "roll": 0},
-    {"id": "B", "type": "horizontal", "yaw": 60,  "pitch": 0, "roll": 0},
-    {"id": "C", "type": "horizontal", "yaw": 120, "pitch": 0, "roll": 0},
-    {"id": "D", "type": "horizontal", "yaw": 180, "pitch": 0, "roll": 0},
-    {"id": "E", "type": "horizontal", "yaw": 240, "pitch": 0, "roll": 0},
-    {"id": "F", "type": "horizontal", "yaw": 300, "pitch": 0, "roll": 0},
-    {"id": "G", "type": "upward",     "yaw": 0,   "pitch": 70, "roll": 0},
-    {"id": "H", "type": "upward",     "yaw": 120, "pitch": 70, "roll": 0},
-    {"id": "J", "type": "upward",     "yaw": 240, "pitch": 70, "roll": 0},
+    {"id": "A", "type": "horizontal", "yaw": -81.7,  "pitch": 10.1,  "roll": -0.7},
+    {"id": "B", "type": "horizontal", "yaw": -27.1,  "pitch":  7.9,  "roll":  0.2},
+    {"id": "C", "type": "horizontal", "yaw":  26.2,  "pitch": 10.5,  "roll": -1.1},
+    {"id": "D", "type": "horizontal", "yaw":  80.7,  "pitch":  7.5,  "roll": -1.5},
+    {"id": "E", "type": "horizontal", "yaw": 134.8,  "pitch":  9.9,  "roll":  0.1},
+    {"id": "F", "type": "horizontal", "yaw": -136.1, "pitch":  8.5,  "roll": -1.7},
+    {"id": "G", "type": "upward",     "yaw": -83.5,  "pitch": 54.8,  "roll":  0.0},
+    {"id": "H", "type": "upward",     "yaw":  26.6,  "pitch": 54.8,  "roll":  0.0},
+    {"id": "J", "type": "upward",     "yaw": 145.0,  "pitch": 54.8,  "roll":  0.0},
 ]
 CAM_INDEX = {c["id"]: i for i, c in enumerate(CAMERAS)}
 
@@ -433,15 +433,51 @@ def run_bundle_adjustment(features, pairwise_matches, cameras, images, pair_resu
         log.warning("Both adjusters failed — using last result")
         sub_cameras_refined = refined
 
-    # Wave correction on horizontal cameras
+    # Wave correction on horizontal cameras — forces the horizon level
     rmats = [np.copy(c.R).astype(np.float32) for c in sub_cameras_refined]
     cv2.detail.waveCorrect(rmats, cv2.detail.WAVE_CORRECT_HORIZ)
+
+    # Check if wave correction flipped the pitch direction.
+    # Compare corrected pitches against the initial rig pitches.
+    init_pitches = [CAMERAS[new_to_old[i]]["pitch"] for i in range(sub_n)]
+    corrected_pitches = [rotation_matrix_to_ypr(rm.astype(np.float64))[1] for rm in rmats]
+    # Compute mean signed pitch error vs initial
+    pitch_error = float(np.mean([cp - ip for cp, ip in zip(corrected_pitches, init_pitches)]))
+    if abs(pitch_error) > 15:
+        log.info(f"  Wave correction shifted pitch by {pitch_error:+.1f}° — compensating")
+        # Apply a global pitch correction to bring pitches back near initial values
+        for i in range(len(rmats)):
+            y, p, r = rotation_matrix_to_ypr(rmats[i].astype(np.float64))
+            p_corrected = p - pitch_error
+            rmats[i] = ypr_to_rotation_matrix(y, p_corrected, r).astype(np.float32)
+
     for i, c in enumerate(sub_cameras_refined): c.R = rmats[i]
 
     # Merge back
     result = list(cameras)
     for ni, cr in enumerate(sub_cameras_refined):
         result[new_to_old[ni]] = cr
+
+    # ── Normalize global rotation ──
+    # BA only recovers relative rotations — the absolute yaw reference is arbitrary.
+    # Wave correction can introduce a large global yaw shift. We normalize by
+    # computing the median yaw offset from the initial rig geometry and removing it,
+    # so the output stays centered close to the initial camera positions.
+    horiz_offsets = []
+    for i in sorted(largest):
+        actual_yaw, _, _ = rotation_matrix_to_ypr(result[i].R.astype(np.float64))
+        initial_yaw = CAMERAS[i]["yaw"]
+        offset = ((actual_yaw - initial_yaw + 180) % 360) - 180
+        horiz_offsets.append(offset)
+    global_yaw_shift = float(np.median(horiz_offsets))
+
+    if abs(global_yaw_shift) > 10:
+        log.info(f"  Removing global yaw shift: {global_yaw_shift:.1f}°")
+        for i in sorted(largest):
+            yaw, pitch, roll = rotation_matrix_to_ypr(result[i].R.astype(np.float64))
+            result[i].R = ypr_to_rotation_matrix(yaw - global_yaw_shift, pitch, roll).astype(np.float32)
+    else:
+        global_yaw_shift = 0
 
     # Compute per-horizontal-camera yaw offsets introduced by BA + wave correction
     horiz_yaw_offsets = {}
@@ -497,6 +533,66 @@ def run_bundle_adjustment(features, pairwise_matches, cameras, images, pair_resu
         src = "BA" if i in largest_set else "SKY"
         log.info(f"  {CAMERAS[i]['id']}: f={c.focal:.1f}px fov_h={fov_h:.1f}° "
                  f"yaw={yaw:.1f}° pitch={pitch:.1f}° roll={roll:.1f}° [{src}]")
+
+    # ── Validate BA result ──
+    # Check that horizontal cameras maintained their relative order and spacing.
+    # The rig has 6 cameras at ~60° intervals. BA should only shift them by
+    # a global rotation + small per-camera adjustments, NOT swap their positions.
+    horiz_yaws_initial = [CAMERAS[i]["yaw"] for i in range(n) if CAMERAS[i]["type"] == "horizontal"]
+    horiz_yaws_result = []
+    for i in range(n):
+        if CAMERAS[i]["type"] != "horizontal":
+            continue
+        yaw, _, _ = rotation_matrix_to_ypr(result[i].R.astype(np.float64))
+        horiz_yaws_result.append(yaw)
+
+    # Check pairwise angular distances between consecutive horizontal cameras.
+    # Initial spacing is ~60°. If any pair deviates by more than 25° from
+    # the initial spacing, the BA likely converged to a wrong solution.
+    max_spacing_error = 0
+    for k in range(len(horiz_yaws_initial)):
+        k2 = (k + 1) % len(horiz_yaws_initial)
+        init_gap = ((horiz_yaws_initial[k2] - horiz_yaws_initial[k] + 180) % 360) - 180
+        result_gap = ((horiz_yaws_result[k2] - horiz_yaws_result[k] + 180) % 360) - 180
+        spacing_error = abs(((result_gap - init_gap + 180) % 360) - 180)
+        max_spacing_error = max(max_spacing_error, spacing_error)
+
+    if max_spacing_error > 30:
+        log.error(f"  BA VALIDATION FAILED: camera spacing error = {max_spacing_error:.1f}° "
+                  f"(max allowed 25°)")
+        log.error(f"  The bundle adjustment converged to a wrong rotational solution.")
+        log.error(f"  Try: (1) use --quality full, (2) pick a better-lit frame with "
+                  f"--frame N, or (3) use a frame with more visual detail in the "
+                  f"overlap regions between cameras.")
+        log.error(f"  Falling back to initial rig geometry with BA yaw offsets only.")
+
+        # Fall back: apply only a global yaw rotation (median offset) to the initial poses
+        offsets = []
+        for k in range(len(horiz_yaws_initial)):
+            off = ((horiz_yaws_result[k] - horiz_yaws_initial[k] + 180) % 360) - 180
+            offsets.append(off)
+        # Check if offsets are consistent (all ~same = global rotation, fine)
+        # or scattered (camera swap, bad)
+        offset_std = float(np.std(offsets))
+        if offset_std < 15:
+            # Consistent global offset — this is actually OK, just a rotation
+            median_offset = float(np.median(offsets))
+            log.info(f"  Global yaw offset: {median_offset:.1f}° (std={offset_std:.1f}°) — "
+                     f"applying as global rotation")
+            for i in range(n):
+                init_yaw = CAMERAS[i]["yaw"]
+                init_pitch = CAMERAS[i]["pitch"]
+                init_roll = CAMERAS[i]["roll"]
+                if CAMERAS[i]["type"] == "upward":
+                    adjusted_yaw = init_yaw + median_offset
+                    result[i].R = ypr_to_rotation_matrix(adjusted_yaw, sky_pitch, 0).astype(np.float32)
+                else:
+                    adjusted_yaw = init_yaw + median_offset
+                    result[i].R = ypr_to_rotation_matrix(adjusted_yaw, init_pitch, init_roll).astype(np.float32)
+        else:
+            log.error(f"  Yaw offsets inconsistent (std={offset_std:.1f}°) — "
+                      f"using initial geometry unchanged")
+            result = build_initial_cameras(images, horiz_lens, sky_lens)
 
     return result
 

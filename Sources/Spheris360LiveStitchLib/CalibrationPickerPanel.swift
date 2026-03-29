@@ -10,15 +10,18 @@ public final class CalibrationPickerPanel: NSPanel, NSTableViewDataSource, NSTab
     private let searchField = NSSearchField()
     private var onSelect: ((CalibrationProfile) -> Void)?
     private var onRename: ((CalibrationProfile) -> CalibrationProfile?)?
+    private var onNewCalibration: (() -> Void)?
     private weak var library: CalibrationLibrary?
 
     public init(library: CalibrationLibrary,
                 currentProfile: CalibrationProfile?,
                 onSelect: @escaping (CalibrationProfile) -> Void,
-                onRename: @escaping (CalibrationProfile) -> CalibrationProfile?) {
+                onRename: @escaping (CalibrationProfile) -> CalibrationProfile?,
+                onNewCalibration: (() -> Void)? = nil) {
         self.library = library
         self.onSelect = onSelect
         self.onRename = onRename
+        self.onNewCalibration = onNewCalibration
         let rect = NSRect(x: 0, y: 0, width: 680, height: 400)
         super.init(contentRect: rect,
                    styleMask: [.titled, .closable, .resizable],
@@ -93,6 +96,15 @@ public final class CalibrationPickerPanel: NSPanel, NSTableViewDataSource, NSTab
         renameBtn.autoresizingMask = [.minXMargin]
         btnBar.addSubview(renameBtn)
 
+        if onNewCalibration != nil {
+            let newBtn = NSButton(frame: NSRect(x: 8, y: 8, width: 120, height: 24))
+            newBtn.title = "New Calibration"
+            newBtn.bezelStyle = .rounded
+            newBtn.target = self
+            newBtn.action = #selector(newCalibClicked)
+            btnBar.addSubview(newBtn)
+        }
+
         container.addSubview(btnBar)
         contentView = container
 
@@ -150,6 +162,15 @@ public final class CalibrationPickerPanel: NSPanel, NSTableViewDataSource, NSTab
                 tableView.selectRowIndexes(IndexSet(integer: newIdx), byExtendingSelection: false)
             }
         }
+    }
+
+    @objc private func newCalibClicked() {
+        onNewCalibration?()
+    }
+
+    /// Refresh the list (call after calibration completes)
+    public func refreshProfiles() {
+        reload()
     }
 
     @objc private func tableDoubleClicked() {

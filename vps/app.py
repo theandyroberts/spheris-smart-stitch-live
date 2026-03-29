@@ -321,6 +321,57 @@ def stream_stop():
     return "", 200
 
 
+# ── View mode tracking ────────────────────────────────────────────────────
+
+VIEWSTATS_FILE = DATA_DIR / "viewstats.json"
+
+
+def get_viewstats():
+    return load_json(VIEWSTATS_FILE, {})
+
+
+@app.route("/api/viewmode", methods=["POST"])
+def report_viewmode():
+    """Viewers report their current view mode (flat or 360). Called periodically."""
+    session, _ = get_session_from_request()
+    if not session:
+        abort(401)
+    data = request.get_json(silent=True) or {}
+    mode = data.get("mode", "flat")
+    if mode not in ("flat", "360"):
+        mode = "flat"
+    stats = get_viewstats()
+    email = session["email"]
+    if email not in stats:
+        stats[email] = {"switches": []}
+    prev = stats[email].get("current")
+    stats[email]["current"] = mode
+    stats[email]["last_seen"] = datetime.now(timezone.utc).isoformat()
+    if prev and prev != mode:
+        stats[email]["switches"].append({
+            "from": prev, "to": mode,
+            "at": datetime.now(timezone.utc).isoformat()
+        })
+    save_json(VIEWSTATS_FILE, stats)
+    return jsonify({"ok": True})
+
+
+@app.route("/api/admin/viewstats", methods=["GET"])
+def admin_viewstats():
+    """View mode stats for all viewers."""
+    key = request.headers.get("X-Api-Key", "")
+    if key != os.environ.get("SPHERIS_ADMIN_KEY", "spheris-admin-dev"):
+        abort(403)
+    stats = get_viewstats()
+    flat_count = sum(1 for v in stats.values() if v.get("current") == "flat")
+    three60_count = sum(1 for v in stats.values() if v.get("current") == "360")
+    return jsonify({
+        "flat": flat_count,
+        "360": three60_count,
+        "viewers": stats
+    })
+
+
 # ── HTML Templates ──────────────────────────────────────────────────────────
 
 LOGIN_HTML = """<!DOCTYPE html>
@@ -372,19 +423,40 @@ WATCH_HTML = """<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
 <title>{{ shoot_name }} — Live</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
          background: #000; color: #eee; }
   .header { display: flex; justify-content: space-between; align-items: center;
-            padding: 8px 16px; background: #111; }
+            padding: 8px 16px; background: #111; position: relative; z-index: 100; }
   .header h1 { font-size: 14px; color: #4a9eff; letter-spacing: 1px; }
+  .header .right { display: flex; align-items: center; gap: 12px; }
   .header .user { font-size: 12px; color: #888; }
   .header a { color: #666; font-size: 12px; text-decoration: none; }
-  .video-container { width: 100%; background: #000; position: relative; }
-  video { width: 100%; display: block; }
+
+  /* View mode toggle */
+  .view-toggle { display: flex; background: #222; border-radius: 6px; overflow: hidden;
+                 font-size: 12px; }
+  .view-toggle button { padding: 4px 12px; border: none; background: transparent;
+                        color: #888; cursor: pointer; font-size: 12px;
+                        transition: all 0.2s; }
+  .view-toggle button.active { background: #4a9eff; color: #fff; }
+  .view-toggle button:hover:not(.active) { color: #ccc; }
+
+  /* Flat view */
+  .flat-container { width: 100%; background: #000; }
+  .flat-container video { width: 100%; display: block; }
+
+  /* 360 view */
+  .sphere-container { width: 100%; position: relative; }
+  #viewer { width: 100%; display: block; cursor: grab; }
+  #viewer:active { cursor: grabbing; }
+  .heading-bar { text-align: center; padding: 4px 0; font-size: 12px;
+                 color: #888; font-family: 'SF Mono', 'Menlo', monospace;
+                 background: #111; }
+
   .standby { display: flex; justify-content: center; align-items: center;
              height: 50vh; color: #666; font-size: 18px; }
   .feedback-bar { display: flex; padding: 8px 16px; background: #111; gap: 8px; }
@@ -398,21 +470,44 @@ WATCH_HTML = """<!DOCTYPE html>
   .feedback-item { padding: 6px 0; border-bottom: 1px solid #1a1a1a; font-size: 13px; }
   .feedback-item .meta { color: #666; font-size: 11px; }
   .feedback-item .like-icon { color: #4a9eff; }
+
+  .hidden { display: none !important; }
 </style>
 </head>
 <body>
 <div class="header">
   <h1>SPHERIS 360 — {{ shoot_name }}{% if clip_number %} — Clip {{ clip_number }}{% endif %}</h1>
-  <span class="user">{{ email }} &nbsp; <a href="/logout">logout</a></span>
+  <div class="right">
+    {% if stream_active %}
+    <div class="view-toggle">
+      <button id="btn-flat" class="active" onclick="switchView('flat')">Flat</button>
+      <button id="btn-360" onclick="switchView('360')">360</button>
+    </div>
+    <div class="view-toggle">
+      <button id="btn-grade" onclick="toggleGrade()">Grade: Off</button>
+    </div>
+    {% endif %}
+    <span class="user">{{ email }} &nbsp; <a href="/logout">logout</a></span>
+  </div>
 </div>
 
-<div class="video-container">
-  {% if stream_active %}
-  <video id="video" controls autoplay muted playsinline></video>
-  {% else %}
-  <div class="standby">Waiting for stream to start...</div>
-  {% endif %}
+{% if stream_active %}
+<!-- Shared video element (visible in flat mode, hidden texture source in 360 mode) -->
+<video id="video" autoplay muted playsinline crossorigin="anonymous"></video>
+
+<!-- Flat view (default) -->
+<div class="flat-container" id="flat-view">
+  <video id="video-flat" autoplay muted playsinline></video>
 </div>
+
+<!-- 360 view (hidden initially) -->
+<div class="sphere-container hidden" id="sphere-view">
+  <canvas id="viewer"></canvas>
+  <div class="heading-bar" id="heading-bar"></div>
+</div>
+{% else %}
+<div class="standby">Waiting for stream to start...</div>
+{% endif %}
 
 <div class="feedback-bar">
   <button id="like-btn" onclick="sendLike()">&#x1F44D; Like</button>
@@ -424,24 +519,265 @@ WATCH_HTML = """<!DOCTYPE html>
 <div class="feedback-list" id="feedback-list"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.min.js"></script>
 <script>
-// HLS player setup
+// ── State ──
+let currentView = 'flat';
+let gradeEnabled = false;
+let sphereInitialized = false;
+let sphereRenderer, sphereCamera, sphereScene, sphereAnimId;
+let sphereMaterial = null;
+
 const video = document.getElementById('video');
-if (video) {
-  const src = '/hls/spheris.m3u8';
-  if (video.canPlayType('application/vnd.apple.mpegurl')) {
-    // Safari — native HLS
-    video.src = src;
+const videoFlat = document.getElementById('video-flat');
+const canvas = document.getElementById('viewer');
+const flatView = document.getElementById('flat-view');
+const sphereView = document.getElementById('sphere-view');
+
+// ── HLS setup — attach to both video elements ──
+const hlsSrc = '/hls/spheris.m3u8';
+
+function attachHLS(el) {
+  if (!el) return;
+  if (el.canPlayType('application/vnd.apple.mpegurl')) {
+    el.src = hlsSrc;
   } else if (typeof Hls !== 'undefined' && Hls.isSupported()) {
-    // Other browsers — hls.js
     const hls = new Hls({ liveSyncDuration: 3, liveMaxLatencyDuration: 6 });
-    hls.loadSource(src);
-    hls.attachMedia(video);
+    hls.loadSource(hlsSrc);
+    hls.attachMedia(el);
   }
 }
 
+// Flat video gets HLS immediately
+attachHLS(videoFlat);
+// Hidden video for Three.js texture — attach when 360 mode activates
+let hiddenHLSAttached = false;
+
+// ── View switching ──
+function switchView(mode) {
+  currentView = mode;
+  document.getElementById('btn-flat').classList.toggle('active', mode === 'flat');
+  document.getElementById('btn-360').classList.toggle('active', mode === '360');
+
+  if (mode === 'flat') {
+    flatView.classList.remove('hidden');
+    sphereView.classList.add('hidden');
+    // Pause 360 rendering when not visible
+    if (sphereAnimId) { cancelAnimationFrame(sphereAnimId); sphereAnimId = null; }
+  } else {
+    flatView.classList.add('hidden');
+    sphereView.classList.remove('hidden');
+    if (!sphereInitialized) initSphere();
+    else animateSphere();
+  }
+
+  // Report view mode to server
+  reportViewMode(mode);
+}
+
+function reportViewMode(mode) {
+  fetch('/api/viewmode', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ mode: mode })
+  }).catch(() => {});
+}
+
+// Report initial mode and periodically
+if (video) {
+  reportViewMode('flat');
+  setInterval(() => reportViewMode(currentView), 30000);
+}
+
+// ── Color grade toggle ──
+function toggleGrade() {
+  gradeEnabled = !gradeEnabled;
+  const btn = document.getElementById('btn-grade');
+  if (btn) {
+    btn.textContent = gradeEnabled ? 'Grade: On' : 'Grade: Off';
+    btn.classList.toggle('active', gradeEnabled);
+  }
+  // Update 360 shader uniform
+  if (sphereMaterial) {
+    sphereMaterial.uniforms.lutEnabled.value = gradeEnabled ? 1 : 0;
+  }
+  // For flat view: use a CSS filter approximation (boost contrast + saturation)
+  if (videoFlat) {
+    videoFlat.style.filter = gradeEnabled
+      ? 'contrast(1.4) saturate(1.5) brightness(1.1)'
+      : 'none';
+  }
+}
+
+// ── Three.js 360 viewer (lazy init) ──
+let lon = 180, lat = 0, fov = 90;
+const fovMin = 30, fovMax = 120;
+
+function initSphere() {
+  if (!canvas || !video) return;
+  sphereInitialized = true;
+
+  // Attach HLS to hidden video for texture
+  if (!hiddenHLSAttached) {
+    attachHLS(video);
+    hiddenHLSAttached = true;
+  }
+
+  sphereScene = new THREE.Scene();
+  sphereCamera = new THREE.PerspectiveCamera(fov, canvas.clientWidth / canvas.clientHeight, 0.1, 1000);
+  sphereCamera.position.set(0, 0, 0);
+
+  sphereRenderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+  sphereRenderer.setSize(canvas.clientWidth, canvas.clientHeight);
+  sphereRenderer.setPixelRatio(window.devicePixelRatio);
+
+  const texture = new THREE.VideoTexture(video);
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.colorSpace = THREE.SRGBColorSpace;
+
+  // ShaderMaterial with optional Log3G10/RWG → Rec.709 color grade
+  sphereMaterial = new THREE.ShaderMaterial({
+    uniforms: {
+      map: { value: texture },
+      lutEnabled: { value: 0 }
+    },
+    vertexShader: [
+      'varying vec2 vUv;',
+      'void main() {',
+      '  vUv = uv;',
+      '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);',
+      '}'
+    ].join('\\n'),
+    fragmentShader: [
+      'uniform sampler2D map;',
+      'uniform int lutEnabled;',
+      'varying vec2 vUv;',
+      '',
+      '// REDLog3G10 decode',
+      'float log3g10ToLinear(float x) {',
+      '  float A = 0.091; float B = 0.6; float C = 155.975327;',
+      '  if (x <= A) return (x - A) / (B * C * 0.4342945);',  // log10(e)
+      '  return (pow(10.0, (x - A) / B) - 1.0) / C;',
+      '}',
+      '',
+      '// Rec.709 OETF',
+      'float rec709(float L) {',
+      '  if (L < 0.018) return clamp(4.5 * L, 0.0, 1.0);',
+      '  return clamp(1.099 * pow(max(L, 0.0), 0.45) - 0.099, 0.0, 1.0);',
+      '}',
+      '',
+      'void main() {',
+      '  vec4 tex = texture2D(map, vUv);',
+      '  vec3 c = tex.rgb;',
+      '  if (lutEnabled == 1) {',
+      '    // Decode Log3G10',
+      '    float rLin = log3g10ToLinear(c.r);',
+      '    float gLin = log3g10ToLinear(c.g);',
+      '    float bLin = log3g10ToLinear(c.b);',
+      '    // REDWideGamut → Rec.709 matrix',
+      '    float r709 = 1.4183*rLin - 0.3209*gLin - 0.0974*bLin;',
+      '    float g709 = -0.0913*rLin + 1.1673*gLin - 0.0760*bLin;',
+      '    float b709 = -0.0094*rLin - 0.0560*gLin + 1.0654*bLin;',
+      '    // Rec.709 OETF',
+      '    c = vec3(rec709(r709), rec709(g709), rec709(b709));',
+      '  }',
+      '  gl_FragColor = vec4(c, 1.0);',
+      '}'
+    ].join('\\n'),
+    side: THREE.BackSide
+  });
+
+  const geometry = new THREE.SphereGeometry(500, 64, 32);
+  sphereScene.add(new THREE.Mesh(geometry, sphereMaterial));
+
+  // Mouse / touch drag
+  let isDragging = false, startX = 0, startY = 0, startLon = 0, startLat = 0;
+
+  canvas.addEventListener('pointerdown', e => {
+    isDragging = true;
+    startX = e.clientX; startY = e.clientY;
+    startLon = lon; startLat = lat;
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (!isDragging) return;
+    const sensitivity = fov / 90 * 0.2;
+    lon = startLon + (startX - e.clientX) * sensitivity;
+    lat = startLat + (e.clientY - startY) * sensitivity;
+    lat = Math.max(-85, Math.min(85, lat));
+  });
+  canvas.addEventListener('pointerup', e => {
+    isDragging = false;
+    canvas.releasePointerCapture(e.pointerId);
+  });
+
+  // Scroll to zoom
+  canvas.addEventListener('wheel', e => {
+    e.preventDefault();
+    fov = Math.max(fovMin, Math.min(fovMax, fov + e.deltaY * 0.05));
+    sphereCamera.fov = fov;
+    sphereCamera.updateProjectionMatrix();
+  }, { passive: false });
+
+  // Touch pinch to zoom
+  let lastPinchDist = 0;
+  canvas.addEventListener('touchstart', e => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      lastPinchDist = Math.sqrt(dx*dx + dy*dy);
+    }
+  }, { passive: true });
+  canvas.addEventListener('touchmove', e => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      fov = Math.max(fovMin, Math.min(fovMax, fov + (lastPinchDist - dist) * 0.1));
+      sphereCamera.fov = fov;
+      sphereCamera.updateProjectionMatrix();
+      lastPinchDist = dist;
+    }
+  }, { passive: true });
+
+  // Resize
+  window.addEventListener('resize', () => {
+    if (!sphereRenderer || currentView !== '360') return;
+    sphereCamera.aspect = canvas.clientWidth / canvas.clientHeight;
+    sphereCamera.updateProjectionMatrix();
+    sphereRenderer.setSize(canvas.clientWidth, canvas.clientHeight);
+  });
+
+  animateSphere();
+}
+
+function animateSphere() {
+  sphereAnimId = requestAnimationFrame(animateSphere);
+  const phi = THREE.MathUtils.degToRad(90 - lat);
+  const theta = THREE.MathUtils.degToRad(lon);
+  const target = new THREE.Vector3(
+    500 * Math.sin(phi) * Math.cos(theta),
+    500 * Math.cos(phi),
+    500 * Math.sin(phi) * Math.sin(theta)
+  );
+  sphereCamera.lookAt(target);
+
+  // Heading display
+  const bar = document.getElementById('heading-bar');
+  if (bar) {
+    let heading = ((lon % 360) + 360) % 360;
+    heading = (heading - 180 + 360) % 360;
+    bar.textContent = Math.round(heading) + '\u00B0  FoV ' + Math.round(fov) + '\u00B0';
+  }
+
+  sphereRenderer.render(sphereScene, sphereCamera);
+}
+
+// ── Feedback ──
 function getPlaybackTime() {
-  return video ? Math.round(video.currentTime * 10) / 10 : null;
+  const v = currentView === 'flat' ? videoFlat : video;
+  return v ? Math.round(v.currentTime * 10) / 10 : null;
 }
 
 function sendLike() {
@@ -473,22 +809,21 @@ function loadFeedback() {
     .then(r => r.json())
     .then(items => {
       const list = document.getElementById('feedback-list');
+      if (!list) return;
       list.innerHTML = items.slice(-50).reverse().map(item => {
-        const ts = item.timestamp != null ? `@ ${Math.floor(item.timestamp/60)}:${String(Math.floor(item.timestamp%60)).padStart(2,'0')}` : '';
+        const ts = item.timestamp != null ? '@ ' + Math.floor(item.timestamp/60) + ':' + String(Math.floor(item.timestamp%60)).padStart(2,'0') : '';
         if (item.type === 'like') {
-          return `<div class="feedback-item"><span class="like-icon">&#x1F44D;</span> ${item.email} ${ts} <span class="meta">${new Date(item.created).toLocaleTimeString()}</span></div>`;
+          return '<div class="feedback-item"><span class="like-icon">&#x1F44D;</span> ' + item.email + ' ' + ts + ' <span class="meta">' + new Date(item.created).toLocaleTimeString() + '</span></div>';
         }
-        return `<div class="feedback-item"><strong>${item.email}</strong> ${ts}: ${item.text} <span class="meta">${new Date(item.created).toLocaleTimeString()}</span></div>`;
+        return '<div class="feedback-item"><strong>' + item.email + '</strong> ' + ts + ': ' + item.text + ' <span class="meta">' + new Date(item.created).toLocaleTimeString() + '</span></div>';
       }).join('');
     })
     .catch(() => {});
 }
 
-// Poll feedback every 5 seconds
 loadFeedback();
 setInterval(loadFeedback, 5000);
 
-// Auto-refresh page if stream not active (check every 10s)
 {% if not stream_active %}
 setTimeout(() => location.reload(), 10000);
 {% endif %}
