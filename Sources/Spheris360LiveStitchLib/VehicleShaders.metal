@@ -17,6 +17,7 @@ struct VehicleMaterialUniforms {
     uint     isGlass;
     uint     lutEnabled;
     float    exposure;
+    uint     hasTexture;
 };
 
 // ── Vertex I/O ──
@@ -24,6 +25,7 @@ struct VehicleMaterialUniforms {
 struct VehicleVertexIn {
     float3 position [[attribute(0)]];
     float3 normal   [[attribute(1)]];
+    float2 texcoord [[attribute(2)]];
 };
 
 struct VehicleVertexOut {
@@ -31,6 +33,7 @@ struct VehicleVertexOut {
     float3 worldPosition;
     float3 worldNormal;
     float3 viewDir;
+    float2 texcoord;
 };
 
 // ── Sphere sampling (duplicated from VirtualCameraShaders for glass reflections) ──
@@ -86,11 +89,11 @@ vertex VehicleVertexOut vehicleVertexShader(
     out.worldNormal = normalize(u.normalMatrix * in.normal);
     out.clipPosition = u.projectionMatrix * u.viewMatrix * worldPos;
     out.viewDir = normalize(-worldPos.xyz);  // camera at origin
+    out.texcoord = in.texcoord;
     return out;
 }
 
 // ── Opaque fragment shader ──
-// Simple shading for body panels, dashboard, pillars, headliner
 
 fragment float4 vehicleOpaqueFragmentShader(
     VehicleVertexOut in [[stage_in]],
@@ -101,18 +104,28 @@ fragment float4 vehicleOpaqueFragmentShader(
     texture2d<float> s4 [[texture(5)]], texture2d<float> s5 [[texture(6)]],
     texture2d<float> s6 [[texture(7)]], texture2d<float> s7 [[texture(8)]],
     texture2d<float> s8 [[texture(9)]],
-    texture3d<float> lut [[texture(10)]])
+    texture3d<float> lut [[texture(10)]],
+    texture2d<float> diffuseMap [[texture(11)]])
 {
     float3 N = normalize(in.worldNormal);
     float3 V = normalize(in.viewDir);
     float NdotV = max(dot(N, V), 0.0);
 
-    // Simple ambient + directional lighting
-    float3 lightDir = normalize(float3(0.2, 1.0, 0.3));
-    float diffuse = max(dot(N, lightDir), 0.0) * 0.3;
-    float ambient = 0.15;
+    // Surface color: sample diffuse texture or use flat baseColor
+    float3 surfaceColor;
+    if (mat.hasTexture != 0) {
+        constexpr sampler texSamp(filter::linear, mip_filter::linear, address::repeat);
+        surfaceColor = diffuseMap.sample(texSamp, in.texcoord).rgb;
+    } else {
+        surfaceColor = mat.baseColor;
+    }
 
-    float3 color = mat.baseColor * (ambient + diffuse);
+    // Ambient + directional lighting
+    float3 lightDir = normalize(float3(0.2, 1.0, 0.3));
+    float diffuse = max(dot(N, lightDir), 0.0) * 0.5;
+    float ambient = 0.35;
+
+    float3 color = surfaceColor * (ambient + diffuse);
 
     // Environment reflection for metallic/glossy surfaces
     if (mat.reflectivity > 0.01) {
@@ -132,7 +145,6 @@ fragment float4 vehicleOpaqueFragmentShader(
 }
 
 // ── Glass fragment shader ──
-// Transparent surfaces: show 360 video through glass with tint + reflection
 
 fragment float4 vehicleGlassFragmentShader(
     VehicleVertexOut in [[stage_in]],
@@ -143,14 +155,15 @@ fragment float4 vehicleGlassFragmentShader(
     texture2d<float> s4 [[texture(5)]], texture2d<float> s5 [[texture(6)]],
     texture2d<float> s6 [[texture(7)]], texture2d<float> s7 [[texture(8)]],
     texture2d<float> s8 [[texture(9)]],
-    texture3d<float> lut [[texture(10)]])
+    texture3d<float> lut [[texture(10)]],
+    texture2d<float> diffuseMap [[texture(11)]])
 {
     float3 N = normalize(in.worldNormal);
     float3 V = normalize(in.viewDir);
     float NdotV = max(dot(N, V), 0.0);
 
-    // Sample the 360 video "through" the glass (use the view direction, not surface normal)
-    float3 throughDir = normalize(in.worldPosition);  // ray from camera through this point
+    // Sample the 360 video "through" the glass
+    float3 throughDir = normalize(in.worldPosition);
     float3 throughColor = vehicleSampleSphere(throughDir, remaps, s0, s1, s2, s3, s4, s5, s6, s7, s8);
 
     // Apply LUT to through-glass view
@@ -158,6 +171,13 @@ fragment float4 vehicleGlassFragmentShader(
         float logShift = mat.exposure * 0.1806;
         throughColor = clamp(throughColor + logShift, 0.0, 1.0);
         throughColor = vehicleApplyLUT(throughColor, lut);
+    }
+
+    // Modulate with diffuse texture if present (e.g. tinted glass texture)
+    if (mat.hasTexture != 0) {
+        constexpr sampler texSamp(filter::linear, mip_filter::linear, address::repeat);
+        float4 texColor = diffuseMap.sample(texSamp, in.texcoord);
+        throughColor *= texColor.rgb;
     }
 
     // Apply window tint
@@ -172,13 +192,12 @@ fragment float4 vehicleGlassFragmentShader(
         reflColor = vehicleApplyLUT(reflColor, lut);
     }
 
-    // Fresnel reflection (stronger at grazing angles)
-    float R0 = 0.04;  // glass IOR ~1.5
+    // Fresnel reflection
+    float R0 = 0.04;
     float fresnel = R0 + (1.0 - R0) * pow(1.0 - NdotV, 5.0);
-    fresnel *= mat.reflectivity / 0.12;  // scale by material reflectivity
+    fresnel *= mat.reflectivity / 0.12;
 
     float3 color = mix(throughColor, reflColor, clamp(fresnel, 0.0, 0.5));
 
-    // Glass has slight alpha for the compositing — mostly transparent
     return float4(color, 1.0);
 }

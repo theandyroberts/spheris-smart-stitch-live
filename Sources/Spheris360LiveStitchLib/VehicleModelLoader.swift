@@ -5,15 +5,16 @@ import ModelIO
 import simd
 
 /// Material classification for vehicle submeshes.
-public struct VehicleSubmeshMaterial {
+public struct VehicleSubmeshMaterial: @unchecked Sendable {
     public var isGlass: Bool
     public var baseColor: SIMD3<Float>
     public var tintAmount: Float    // 0 = clear glass, 1 = fully tinted
     public var reflectivity: Float  // 0 = matte, 1 = mirror
+    public var diffuseTexture: MTLTexture?  // albedo/diffuse map (nil = use baseColor)
 }
 
 /// A loaded vehicle model ready for Metal rendering.
-public struct VehicleModel {
+public struct VehicleModel: @unchecked Sendable {
     public var meshes: [MTKMesh]
     public var materials: [[VehicleSubmeshMaterial]]  // parallel to meshes[i].submeshes
     public var name: String
@@ -22,7 +23,7 @@ public struct VehicleModel {
 /// Loads OBJ vehicle models from disk using ModelIO.
 public final class VehicleModelLoader {
 
-    /// Standard vertex descriptor: position (float3) + normal (float3) = 24 bytes.
+    /// Standard vertex descriptor: position (float3) + normal (float3) + texcoord (float2) = 32 bytes.
     public static func vertexDescriptor() -> MDLVertexDescriptor {
         let desc = MDLVertexDescriptor()
         desc.attributes[0] = MDLVertexAttribute(
@@ -33,7 +34,11 @@ public final class VehicleModelLoader {
             name: MDLVertexAttributeNormal,
             format: .float3, offset: 12, bufferIndex: 0
         )
-        desc.layouts[0] = MDLVertexBufferLayout(stride: 24)
+        desc.attributes[2] = MDLVertexAttribute(
+            name: MDLVertexAttributeTextureCoordinate,
+            format: .float2, offset: 24, bufferIndex: 0
+        )
+        desc.layouts[0] = MDLVertexBufferLayout(stride: 32)
         return desc
     }
 
@@ -58,19 +63,25 @@ public final class VehicleModelLoader {
 
         let (mdlMeshes, mtkMeshes) = try MTKMesh.newMeshes(asset: asset, device: device)
 
+        // Texture cache to avoid loading the same image file twice
+        var textureCache: [String: MTLTexture] = [:]
+
         var allMaterials: [[VehicleSubmeshMaterial]] = []
 
         for (mdlMesh, _) in zip(mdlMeshes, mtkMeshes) {
             var submeshMats: [VehicleSubmeshMaterial] = []
             for sub in mdlMesh.submeshes as? [MDLSubmesh] ?? [] {
-                let mat = classifyMaterial(sub.material)
+                let mat = classifyMaterial(
+                    sub.material, device: device, objURL: objURL,
+                    textureCache: &textureCache
+                )
                 submeshMats.append(mat)
             }
             // If no submeshes had materials, add a default opaque material
             if submeshMats.isEmpty {
                 submeshMats.append(VehicleSubmeshMaterial(
                     isGlass: false,
-                    baseColor: SIMD3<Float>(0.05, 0.05, 0.06),
+                    baseColor: SIMD3<Float>(0.15, 0.15, 0.16),
                     tintAmount: 0,
                     reflectivity: 0.04
                 ))
@@ -92,51 +103,130 @@ public final class VehicleModelLoader {
             print("  Mesh \(i): bounds min=(\(String(format: "%.2f, %.2f, %.2f", min.x, min.y, min.z))) max=(\(String(format: "%.2f, %.2f, %.2f", max.x, max.y, max.z))) size=(\(String(format: "%.2f, %.2f, %.2f", size.x, size.y, size.z)))")
         }
 
+        print("  Loaded \(textureCache.count) diffuse texture(s)")
         return VehicleModel(meshes: mtkMeshes, materials: allMaterials, name: name)
     }
 
+    // MARK: - Texture loading
+
+    /// Load the diffuse/albedo texture referenced by a material's baseColor property.
+    private static func loadDiffuseTexture(
+        _ material: MDLMaterial?,
+        device: MTLDevice,
+        objURL: URL,
+        textureCache: inout [String: MTLTexture]
+    ) -> MTLTexture? {
+        guard let material = material,
+              let prop = material.property(with: .baseColor)
+        else { return nil }
+
+        let texURL: URL?
+        switch prop.type {
+        case .string:
+            guard let path = prop.stringValue, !path.isEmpty else { return nil }
+            texURL = objURL.deletingLastPathComponent().appendingPathComponent(path)
+        case .URL:
+            texURL = prop.urlValue
+        default:
+            return nil
+        }
+
+        guard let url = texURL else { return nil }
+
+        // Check cache
+        let key = url.path
+        if let cached = textureCache[key] { return cached }
+
+        guard FileManager.default.fileExists(atPath: url.path) else {
+            print("    Texture not found: \(url.lastPathComponent)")
+            return nil
+        }
+
+        let loader = MTKTextureLoader(device: device)
+        let options: [MTKTextureLoader.Option: Any] = [
+            .textureUsage: MTLTextureUsage.shaderRead.rawValue,
+            .textureStorageMode: MTLStorageMode.private.rawValue,
+            .SRGB: true,
+            .generateMipmaps: true
+        ]
+        do {
+            let tex = try loader.newTexture(URL: url, options: options)
+            textureCache[key] = tex
+            print("    Loaded texture: \(url.lastPathComponent) (\(tex.width)x\(tex.height))")
+            return tex
+        } catch {
+            print("    Failed to load texture \(url.lastPathComponent): \(error.localizedDescription)")
+            return nil
+        }
+    }
+
+    // MARK: - Material classification
+
     /// Classify a ModelIO material as glass or opaque based on its name.
-    private static func classifyMaterial(_ material: MDLMaterial?) -> VehicleSubmeshMaterial {
+    /// Loads diffuse texture if available.
+    private static func classifyMaterial(
+        _ material: MDLMaterial?,
+        device: MTLDevice,
+        objURL: URL,
+        textureCache: inout [String: MTLTexture]
+    ) -> VehicleSubmeshMaterial {
         let name = (material?.name ?? "").lowercased()
+        print("  Material: \"\(material?.name ?? "<none>")\" properties: \(material?.count ?? 0)")
+
+        // Try to load diffuse texture
+        let diffuseTex = loadDiffuseTexture(material, device: device, objURL: objURL,
+                                            textureCache: &textureCache)
+
         let isGlass = name.contains("glass") || name.contains("window") ||
                       name.contains("windshield") || name.contains("transparent")
 
         if isGlass {
-            // Determine tint level from name hints
             let tint: Float = name.contains("tint") ? 0.15 :
                               name.contains("rear") ? 0.12 :
                               name.contains("side") ? 0.08 : 0.04
             return VehicleSubmeshMaterial(
                 isGlass: true,
-                baseColor: SIMD3<Float>(0, 0, 0),
+                baseColor: SIMD3<Float>(0.9, 0.92, 0.95),
                 tintAmount: tint,
-                reflectivity: 0.12
+                reflectivity: 0.12,
+                diffuseTexture: diffuseTex
             )
         }
 
-        // Try to extract base color from material
-        var color = SIMD3<Float>(0.05, 0.05, 0.06)  // default dark gray
-        if let prop = material?.property(with: .baseColor) {
-            if prop.type == .float3 {
-                color = prop.float3Value
-            } else if prop.type == .color {
-                let c = prop.color ?? .init(red: 0.05, green: 0.05, blue: 0.06, alpha: 1)
-                color = SIMD3<Float>(Float(c.components?[0] ?? 0.05),
-                                     Float(c.components?[1] ?? 0.05),
-                                     Float(c.components?[2] ?? 0.06))
+        // Fallback color when no texture: use material name hints
+        let color: SIMD3<Float>
+        if diffuseTex != nil {
+            color = SIMD3<Float>(1, 1, 1)  // white fallback (texture provides real color)
+        } else {
+            // Heuristic colors for untextured models
+            let isInterior = name.contains("interior") || name.contains("seat") ||
+                             name.contains("dashboard") || name.contains("fabric") ||
+                             name.contains("leather") || name.contains("carpet")
+            let isBlack = name.contains("rubber") || name.contains("tire") || name.contains("tyre") ||
+                          name.contains("grill") || name.contains("grille")
+            let isChrome = name.contains("chrome") || name.contains("metal") ||
+                           name.contains("wheel") || name.contains("rim")
+            if isInterior {
+                color = SIMD3<Float>(0.08, 0.06, 0.05)
+            } else if isBlack {
+                color = SIMD3<Float>(0.03, 0.03, 0.03)
+            } else if isChrome {
+                color = SIMD3<Float>(0.7, 0.7, 0.72)
+            } else {
+                color = SIMD3<Float>(0.7, 0.05, 0.03)  // Rosso Corsa red
             }
         }
 
-        // Leather/fabric vs metal based on name
         let reflectivity: Float = name.contains("chrome") || name.contains("metal") ? 0.4 :
                                   name.contains("leather") || name.contains("fabric") ? 0.03 :
-                                  name.contains("dashboard") || name.contains("dash") ? 0.15 : 0.04
+                                  name.contains("rubber") || name.contains("tire") ? 0.02 : 0.15
 
         return VehicleSubmeshMaterial(
             isGlass: false,
             baseColor: color,
             tintAmount: 0,
-            reflectivity: reflectivity
+            reflectivity: reflectivity,
+            diffuseTexture: diffuseTex
         )
     }
 

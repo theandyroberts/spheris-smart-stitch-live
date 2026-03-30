@@ -39,6 +39,10 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
     private var exposureLabels: [NSTextField] = []
     private var currentExposure: Float = 0
 
+    // Seam optimization
+    private var seamOptimizer: SeamOptimizer?
+    private var currentRemapTexture: MTLTexture?
+
     // Streaming
     private var streamSettings: StreamSettings?
     private var frameGrabber: FrameGrabber?
@@ -66,6 +70,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         self.metalDevice = device
         self.remapGen = RemapGenerator(device: device)
+        self.seamOptimizer = SeamOptimizer(device: device)
 
         // ── Set up calibration library ──
         let library = CalibrationLibrary(projectDir: projDir)
@@ -108,6 +113,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
             outputWidth: calibration.outputWidth,
             outputHeight: calibration.outputHeight
         )
+        self.currentRemapTexture = remapTexture
         let labelPositions = computeStitchLabelPositions(calibration: calibration)
 
         // ── Load color grading LUT ──
@@ -386,6 +392,47 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         exposureLabels.forEach { $0.stringValue = text }
     }
 
+    // MARK: - Seam optimization
+
+    @objc private func optimizeSeams() {
+        guard let remap = currentRemapTexture,
+              let router = router,
+              let optimizer = seamOptimizer
+        else {
+            print("Seam optimization: missing remap texture or router")
+            return
+        }
+
+        let frames = router.latestCleanFrames
+        guard !frames.isEmpty else {
+            print("Seam optimization: no camera frames available yet")
+            return
+        }
+
+        print("Starting seam optimization...")
+
+        // Run on background thread to avoid blocking UI
+        DispatchQueue.global(qos: .userInitiated).async {
+            guard let optimized = optimizer.optimize(
+                remapTexture: remap,
+                cameraFrames: frames
+            ) else {
+                DispatchQueue.main.async {
+                    print("Seam optimization: failed")
+                }
+                return
+            }
+
+            DispatchQueue.main.async { [weak self] in
+                guard let self = self else { return }
+                self.currentRemapTexture = optimized
+                self.stitchView?.updateCalibration(remapTexture: optimized)
+                self.vcamView?.updateCalibration(remapTexture: optimized)
+                print("Seam optimization: applied")
+            }
+        }
+    }
+
     // MARK: - Calibration switching
 
     private func applyCalibration(_ calibration: CalibrationData) {
@@ -396,6 +443,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
             outputWidth: calibration.outputWidth,
             outputHeight: calibration.outputHeight
         )
+        self.currentRemapTexture = remapTexture
         let labelPositions = computeStitchLabelPositions(calibration: calibration)
         stitchView?.updateCalibration(remapTexture: remapTexture, cameraLabels: labelPositions)
         vcamView?.updateCalibration(remapTexture: remapTexture)
@@ -602,7 +650,16 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         expPlus.action = #selector(exposureUp)
         bar.addSubview(expPlus)
 
-        let playBtn = NSButton(frame: NSRect(x: 244, y: 4, width: 28, height: 28))
+        // Seam optimization button
+        let seamBtn = NSButton(frame: NSRect(x: 244, y: 4, width: 62, height: 28))
+        seamBtn.bezelStyle = .rounded
+        seamBtn.title = "Seams"
+        seamBtn.font = .systemFont(ofSize: 11)
+        seamBtn.target = self
+        seamBtn.action = #selector(optimizeSeams)
+        bar.addSubview(seamBtn)
+
+        let playBtn = NSButton(frame: NSRect(x: 310, y: 4, width: 28, height: 28))
         playBtn.bezelStyle = .regularSquare
         playBtn.title = "⏸"
         playBtn.font = .systemFont(ofSize: 14)
@@ -611,7 +668,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate {
         bar.addSubview(playBtn)
         playPauseButtons.append(playBtn)
 
-        let slider = NSSlider(frame: NSRect(x: 276, y: 8, width: width - 370, height: 20))
+        let slider = NSSlider(frame: NSRect(x: 342, y: 8, width: width - 436, height: 20))
         slider.minValue = 0
         slider.maxValue = 1
         slider.doubleValue = 0

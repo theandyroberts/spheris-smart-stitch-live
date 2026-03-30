@@ -28,6 +28,9 @@ public final class VideoInputRouter: @unchecked Sendable {
     private var frameNumber: Int = 0
     private var paused: Bool = false
 
+    /// Most recent clean camera frames (for seam optimization, etc.)
+    public private(set) var latestCleanFrames: [Int: CVPixelBuffer] = [:]
+
     public init() {}
 
     public func setProvider(_ provider: VideoFrameProvider, slot: Int) {
@@ -138,6 +141,7 @@ public final class VideoInputRouter: @unchecked Sendable {
             }
         }
 
+        self.latestCleanFrames = cleanBuffers
         let payload = FramePayload(originals: originalBuffers, cleans: cleanBuffers,
                                     tallyCrops: tallyCrops, bottomBarCrops: bottomBarCrops)
         DispatchQueue.main.async {
@@ -227,6 +231,7 @@ public final class VideoInputRouter: @unchecked Sendable {
 
         guard !originalBuffers.isEmpty else { return }
 
+        self.latestCleanFrames = cleanBuffers
         let payload = FramePayload(originals: originalBuffers, cleans: cleanBuffers,
                                     tallyCrops: tallyCrops, bottomBarCrops: bottomBarCrops)
         DispatchQueue.main.async {

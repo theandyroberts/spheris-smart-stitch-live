@@ -44,11 +44,18 @@ public final class SetupPanel: NSWindow {
 
         buildUI()
 
-        // Default selections
-        let clip09 = projectDir.appendingPathComponent("Roll02_Clip09")
-        if FileManager.default.fileExists(atPath: clip09.path) {
-            selectedClipDir = clip09
-            clipLabel?.title = clip09.lastPathComponent
+        // Default clip: last used, or fall back to Roll02_Clip09
+        if let lastPath = UserDefaults.standard.string(forKey: "lastClipDirectory"),
+           FileManager.default.fileExists(atPath: lastPath) {
+            let lastClip = URL(fileURLWithPath: lastPath)
+            selectedClipDir = lastClip
+            clipLabel?.title = lastClip.lastPathComponent
+        } else {
+            let clip09 = projectDir.appendingPathComponent("Roll02_Clip09")
+            if FileManager.default.fileExists(atPath: clip09.path) {
+                selectedClipDir = clip09
+                clipLabel?.title = clip09.lastPathComponent
+            }
         }
 
         // Default calibration
@@ -339,6 +346,9 @@ public final class SetupPanel: NSWindow {
             calibrationURL: calibURL,
             lutName: lutFiles.first
         )
+
+        // Remember selections for next launch
+        UserDefaults.standard.set(clipDir.path, forKey: "lastClipDirectory")
 
         orderOut(nil)
         onGo(config)

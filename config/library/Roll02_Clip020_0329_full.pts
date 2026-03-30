@@ -1,0 +1,174 @@
+{
+  "ptguiversion": "12.0",
+  "projectformat": 5,
+  "project": {
+    "outputsize": {
+      "w": 3840,
+      "h": 1920
+    },
+    "projection": "equirectangular",
+    "hfov": 360.0,
+    "vfov": 180.0
+  },
+  "imagegroups": [
+    {
+      "images": [
+        {
+          "filename": "A002_A020_03231W.jpg",
+          "width": 2048,
+          "height": 1080,
+          "include": true,
+          "lenstype": "rectilinear",
+          "hfov": 86.4571,
+          "yaw": -83.8228,
+          "pitch": 9.8153,
+          "roll": 6.3901,
+          "a": 0.0,
+          "b": 0.0,
+          "c": 0.0,
+          "d": 0,
+          "e": 0
+        },
+        {
+          "filename": "B002_B020_1218U6.jpg",
+          "width": 2048,
+          "height": 1080,
+          "include": true,
+          "lenstype": "rectilinear",
+          "hfov": 86.4571,
+          "yaw": -30.0157,
+          "pitch": 5.4335,
+          "roll": -9.3935,
+          "a": 0.0,
+          "b": 0.0,
+          "c": 0.0,
+          "d": 0,
+          "e": 0
+        },
+        {
+          "filename": "C002_C020_0323OA.jpg",
+          "width": 2048,
+          "height": 1080,
+          "include": true,
+          "lenstype": "rectilinear",
+          "hfov": 86.4571,
+          "yaw": 28.3228,
+          "pitch": 14.4202,
+          "roll": -6.8288,
+          "a": 0.0,
+          "b": 0.0,
+          "c": 0.0,
+          "d": 0,
+          "e": 0
+        },
+        {
+          "filename": "D002_D020_0710X8.jpg",
+          "width": 2048,
+          "height": 1080,
+          "include": true,
+          "lenstype": "rectilinear",
+          "hfov": 86.4571,
+          "yaw": 91.939,
+          "pitch": 7.5784,
+          "roll": 12.4675,
+          "a": 0.0,
+          "b": 0.0,
+          "c": 0.0,
+          "d": 0,
+          "e": 0
+        },
+        {
+          "filename": "E002_E020_03237O.jpg",
+          "width": 2048,
+          "height": 1080,
+          "include": true,
+          "lenstype": "rectilinear",
+          "hfov": 86.4571,
+          "yaw": 152.0218,
+          "pitch": 4.9629,
+          "roll": -15.6264,
+          "a": 0.0,
+          "b": 0.0,
+          "c": 0.0,
+          "d": 0,
+          "e": 0
+        },
+        {
+          "filename": "F002_F020_0323DI.jpg",
+          "width": 2048,
+          "height": 1080,
+          "include": true,
+          "lenstype": "rectilinear",
+          "hfov": 86.4571,
+          "yaw": -144.3748,
+          "pitch": 12.1899,
+          "roll": 2.307,
+          "a": 0.0,
+          "b": 0.0,
+          "c": 0.0,
+          "d": 0,
+          "e": 0
+        },
+        {
+          "filename": "G002_G020_0323C6.jpg",
+          "width": 2048,
+          "height": 1080,
+          "include": true,
+          "lenstype": "rectilinear",
+          "hfov": 102.8292,
+          "yaw": -87.9378,
+          "pitch": 54.83,
+          "roll": 0.0,
+          "a": 0.0,
+          "b": 0.0,
+          "c": 0.0,
+          "d": 0,
+          "e": 0
+        },
+        {
+          "filename": "H002_H020_0322CM.jpg",
+          "width": 2048,
+          "height": 1080,
+          "include": true,
+          "lenstype": "rectilinear",
+          "hfov": 102.8292,
+          "yaw": 30.082,
+          "pitch": 54.83,
+          "roll": 0.0,
+          "a": 0.0,
+          "b": 0.0,
+          "c": 0.0,
+          "d": 0,
+          "e": 0
+        },
+        {
+          "filename": "J002_J020_03235G.jpg",
+          "width": 2048,
+          "height": 1080,
+          "include": true,
+          "lenstype": "rectilinear",
+          "hfov": 102.8292,
+          "yaw": 151.7286,
+          "pitch": 54.83,
+          "roll": 0.0,
+          "a": 0.0,
+          "b": 0.0,
+          "c": 0.0,
+          "d": 0,
+          "e": 0
+        }
+      ],
+      "lens": {
+        "lenstype": "rectilinear",
+        "hfov": 86.4571,
+        "a": 0.0,
+        "b": 0.0,
+        "c": 0.0
+      },
+      "size": {
+        "w": 2048,
+        "h": 1080
+      }
+    }
+  ]
+}

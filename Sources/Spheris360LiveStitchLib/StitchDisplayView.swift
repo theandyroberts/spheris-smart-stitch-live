@@ -129,6 +129,11 @@ public final class StitchDisplayView: MTKView, @unchecked Sendable {
         }
     }
 
+    /// Update only the remap texture (e.g., after seam optimization) without rebuilding labels.
+    public func updateCalibration(remapTexture: MTLTexture) {
+        self.remapTexture = remapTexture
+    }
+
     // MARK: - Label rendering
 
     private func buildLabels(_ labels: [(String, Float, Float)], device: MTLDevice) {

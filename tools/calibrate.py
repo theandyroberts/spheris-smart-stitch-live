@@ -143,13 +143,21 @@ def ensure_frames(input_dir, frame_num=100, force=False):
     log.info(f"Extracting frame {frame_num} from {len(movs)} MOV files...")
     for mov in movs:
         out_jpg = mov.with_suffix(".jpg")
-        cmd = [ffmpeg, "-i", str(mov), "-vf", f"select=eq(n\\,{frame_num})",
+        cmd = [ffmpeg, "-nostdin", "-i", str(mov), "-vf", f"select=eq(n\\,{frame_num})",
                "-vframes", "1", "-q:v", "2", str(out_jpg), "-y"]
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            log.warning(f"  ffmpeg failed for {mov.name}: {result.stderr[-200:]}")
-        else:
-            log.info(f"  Extracted {out_jpg.name}")
+        try:
+            result = subprocess.run(
+                cmd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+                text=True, timeout=120
+            )
+            if result.returncode != 0:
+                log.warning(f"  ffmpeg failed for {mov.name}: {result.stderr[-200:]}")
+            else:
+                log.info(f"  Extracted {out_jpg.name}")
+        except subprocess.TimeoutExpired:
+            log.warning(f"  ffmpeg timed out for {mov.name} (>120s)")
+        except Exception as e:
+            log.warning(f"  ffmpeg error for {mov.name}: {e}")
 
 
 # ── Image loading ───────────────────────────────────────────────────────────
@@ -450,6 +458,64 @@ def run_bundle_adjustment(features, pairwise_matches, cameras, images, pair_resu
             y, p, r = rotation_matrix_to_ypr(rmats[i].astype(np.float64))
             p_corrected = p - pitch_error
             rmats[i] = ypr_to_rotation_matrix(y, p_corrected, r).astype(np.float32)
+
+    # ── Orientation constraints ──
+    # On a rigid rig, each camera's orientation should stay close to the
+    # initial geometry. The good hand-tuned calibration deviates by at most
+    # ~1-2° in any axis. Allow some room but prevent wild optimizer drift.
+    MAX_YAW_DEG = 5.0    # per-camera yaw deviation from initial (after global offset removed)
+    MAX_PITCH_DEG = 5.0
+    MAX_ROLL_DEG = 3.0
+
+    # First compute the median yaw offset (global rotation) so we only
+    # clamp per-camera deviations, not the global shift
+    yaw_offsets = []
+    for i in range(len(rmats)):
+        y, _, _ = rotation_matrix_to_ypr(rmats[i].astype(np.float64))
+        init_yaw = CAMERAS[new_to_old[i]]["yaw"]
+        offset = ((y - init_yaw + 180) % 360) - 180
+        yaw_offsets.append(offset)
+    median_yaw_offset = float(np.median(yaw_offsets))
+
+    clamped_count = 0
+    for i in range(len(rmats)):
+        y, p, r = rotation_matrix_to_ypr(rmats[i].astype(np.float64))
+        init_yaw = CAMERAS[new_to_old[i]]["yaw"]
+        init_pitch = CAMERAS[new_to_old[i]]["pitch"]
+        init_roll = CAMERAS[new_to_old[i]]["roll"]
+        cam_id = CAMERAS[new_to_old[i]]["id"]
+        needs_clamp = False
+
+        # Clamp yaw (relative to global offset — only constrain per-camera deviation)
+        y_out = y
+        per_cam_yaw_offset = ((y - init_yaw + 180) % 360) - 180 - median_yaw_offset
+        if abs(per_cam_yaw_offset) > MAX_YAW_DEG:
+            clamped_offset = max(-MAX_YAW_DEG, min(MAX_YAW_DEG, per_cam_yaw_offset))
+            y_out = init_yaw + median_yaw_offset + clamped_offset
+            log.info(f"  Camera {cam_id}: yaw clamped {y:.1f}° → {y_out:.1f}° "
+                     f"(per-cam offset {per_cam_yaw_offset:+.1f}° → {clamped_offset:+.1f}°)")
+            needs_clamp = True
+
+        # Clamp roll
+        r_out = r
+        if abs(r - init_roll) > MAX_ROLL_DEG:
+            r_out = init_roll + max(-MAX_ROLL_DEG, min(MAX_ROLL_DEG, r - init_roll))
+            log.info(f"  Camera {cam_id}: roll clamped {r:.1f}° → {r_out:.1f}°")
+            needs_clamp = True
+
+        # Clamp pitch
+        p_out = p
+        if abs(p - init_pitch) > MAX_PITCH_DEG:
+            p_out = init_pitch + max(-MAX_PITCH_DEG, min(MAX_PITCH_DEG, p - init_pitch))
+            log.info(f"  Camera {cam_id}: pitch clamped {p:.1f}° → {p_out:.1f}°")
+            needs_clamp = True
+
+        if needs_clamp:
+            rmats[i] = ypr_to_rotation_matrix(y_out, p_out, r_out).astype(np.float32)
+            clamped_count += 1
+    if clamped_count:
+        log.info(f"  Orientation clamped on {clamped_count}/{sub_n} cameras "
+                 f"(global yaw offset: {median_yaw_offset:+.1f}°)")
 
     for i, c in enumerate(sub_cameras_refined): c.R = rmats[i]
 
@@ -818,12 +884,10 @@ def main():
     # Auto-generate output path if not specified
     if args.output is None:
         os.makedirs(args.library_dir, exist_ok=True)
-        def sanitize(name):
-            return name.replace(" ", "").replace("/", "-")
-        h_name = sanitize(horiz_lens["lens_name"])
-        s_name = sanitize(sky_lens["lens_name"])
-        date_str = datetime.now().strftime("%Y-%m-%d")
-        base = f"{h_name}-{s_name}_{date_str}_{args.quality}"
+        # Use roll/clip from input directory name + MMDD date
+        clip_name = Path(args.input).resolve().name  # e.g. "Roll02_Clip020"
+        date_str = datetime.now().strftime("%m%d")
+        base = f"{clip_name}_{date_str}_{args.quality}"
         # Avoid overwriting existing files: append _1, _2, etc.
         candidate = os.path.join(args.library_dir, f"{base}.json")
         seq = 1

@@ -32,6 +32,7 @@ public final class VehicleRenderer {
         var isGlass: UInt32
         var lutEnabled: UInt32
         var exposure: Float
+        var hasTexture: UInt32
     }
 
     public init(device: MTLDevice, colorFormat: MTLPixelFormat) {
@@ -52,7 +53,10 @@ public final class VehicleRenderer {
         vertexDesc.attributes[1].format = .float3  // normal
         vertexDesc.attributes[1].offset = 12
         vertexDesc.attributes[1].bufferIndex = 0
-        vertexDesc.layouts[0].stride = 24
+        vertexDesc.attributes[2].format = .float2  // texcoord
+        vertexDesc.attributes[2].offset = 24
+        vertexDesc.attributes[2].bufferIndex = 0
+        vertexDesc.layouts[0].stride = 32
 
         // Opaque pipeline
         let opaqueDesc = MTLRenderPipelineDescriptor()
@@ -162,10 +166,14 @@ public final class VehicleRenderer {
                     tintAmount: mat.tintAmount,
                     isGlass: 0,
                     lutEnabled: lutEnabled ? 1 : 0,
-                    exposure: exposure
+                    exposure: exposure,
+                    hasTexture: mat.diffuseTexture != nil ? 1 : 0
                 )
                 memcpy(mBuf.contents(), &matU, MemoryLayout<MaterialUniforms>.size)
                 encoder.setFragmentBuffer(mBuf, offset: 0, index: 0)
+                if let diffTex = mat.diffuseTexture {
+                    encoder.setFragmentTexture(diffTex, index: 11)
+                }
                 encoder.drawIndexedPrimitives(
                     type: submesh.primitiveType,
                     indexCount: submesh.indexCount,
@@ -194,10 +202,14 @@ public final class VehicleRenderer {
                     tintAmount: mat.tintAmount,
                     isGlass: 1,
                     lutEnabled: lutEnabled ? 1 : 0,
-                    exposure: exposure
+                    exposure: exposure,
+                    hasTexture: mat.diffuseTexture != nil ? 1 : 0
                 )
                 memcpy(mBuf.contents(), &matU, MemoryLayout<MaterialUniforms>.size)
                 encoder.setFragmentBuffer(mBuf, offset: 0, index: 0)
+                if let diffTex = mat.diffuseTexture {
+                    encoder.setFragmentTexture(diffTex, index: 11)
+                }
                 encoder.drawIndexedPrimitives(
                     type: submesh.primitiveType,
                     indexCount: submesh.indexCount,

@@ -32,8 +32,11 @@ public final class VirtualCameraView: MTKView, @unchecked Sendable {
     private var depthTexture: MTLTexture?
     private var noDepthState: MTLDepthStencilState?
     public var seatHeight: Float = 1.1   // meters, driver eye height above model origin
+    public var seatOffsetX: Float = 0    // meters, lateral offset (+ = left)
+    public var seatOffsetZ: Float = 0    // meters, fore/aft offset (+ = forward)
     public var modelScale: Float = 1.0   // scale factor (e.g. 0.01 if model is in cm)
-    public var modelRotationY: Float = 0 // extra yaw rotation to align model forward
+    public var modelRotationY: Float = .pi // extra yaw rotation to align model forward with camera
+    private let seatStep: Float = 0.05   // meters per key press
 
     // Virtual camera state
     private var yaw: Float = -.pi / 2   // radians, absolute equirect heading
@@ -136,7 +139,9 @@ public final class VirtualCameraView: MTKView, @unchecked Sendable {
         // Normalize relative heading to [0, 360) — 0° = front of vehicle
         var heading = (-relativeYaw).truncatingRemainder(dividingBy: 360)
         if heading < 0 { heading += 360 }
-        label.stringValue = String(format: "  %.0f\u{00B0}  \u{2195}%.0f\u{00B0}  FoV %.0f\u{00B0}  ", heading, pitchDeg, fovDeg)
+        let seatInfo = (seatOffsetX != 0 || seatOffsetZ != 0) ?
+            String(format: "  Seat X%.2f Z%.2f H%.2f", seatOffsetX, seatOffsetZ, seatHeight) : ""
+        label.stringValue = String(format: "  %.0f\u{00B0}  \u{2195}%.0f\u{00B0}  FoV %.0f\u{00B0}%@  ", heading, pitchDeg, fovDeg, seatInfo)
         label.sizeToFit()
         var f = label.frame
         f.origin.x = (bounds.width - f.width) / 2
@@ -195,7 +200,8 @@ public final class VirtualCameraView: MTKView, @unchecked Sendable {
             let layout = mesh.vertexDescriptor.layouts[0] as! MDLVertexBufferLayout
             let stride = layout.stride
             let count = vb.length / stride
-            let ptr = vb.buffer.contents().bindMemory(to: Float.self, capacity: count * 6)
+            let floatsPerVertex = stride / MemoryLayout<Float>.size
+            let ptr = vb.buffer.contents().bindMemory(to: Float.self, capacity: count * floatsPerVertex)
             var minX: Float = .greatestFiniteMagnitude, maxX: Float = -.greatestFiniteMagnitude
             var minY: Float = .greatestFiniteMagnitude, maxY: Float = -.greatestFiniteMagnitude
             var minZ: Float = .greatestFiniteMagnitude, maxZ: Float = -.greatestFiniteMagnitude
@@ -304,7 +310,7 @@ public final class VirtualCameraView: MTKView, @unchecked Sendable {
             let viewMat = VehicleRenderer.viewMatrix(yaw: yaw, pitch: pitch)
             let modelMat = VehicleRenderer.modelMatrix(
                 homeYaw: homeYaw,
-                seatOffset: SIMD3<Float>(0, -seatHeight, 0),
+                seatOffset: SIMD3<Float>(seatOffsetX, -seatHeight, seatOffsetZ),
                 modelScale: modelScale,
                 modelRotationY: modelRotationY
             )
@@ -387,7 +393,26 @@ public final class VirtualCameraView: MTKView, @unchecked Sendable {
     }
 
     override public func keyDown(with event: NSEvent) {
-        guard event.modifierFlags.intersection(.deviceIndependentFlagsMask).isEmpty else {
+        let mods = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+
+        // Arrow keys for seat position (no modifier required)
+        switch event.keyCode {
+        case 126: // up arrow — move seat forward
+            seatOffsetZ += seatStep
+            updateHeadingLabel(); draw(); return
+        case 125: // down arrow — move seat backward
+            seatOffsetZ -= seatStep
+            updateHeadingLabel(); draw(); return
+        case 123: // left arrow — move seat left
+            seatOffsetX += seatStep
+            updateHeadingLabel(); draw(); return
+        case 124: // right arrow — move seat right
+            seatOffsetX -= seatStep
+            updateHeadingLabel(); draw(); return
+        default: break
+        }
+
+        guard mods.isEmpty else {
             super.keyDown(with: event)
             return
         }
@@ -397,6 +422,15 @@ public final class VirtualCameraView: MTKView, @unchecked Sendable {
         case "r": snapTo(relativeYawDeg: -90)   // right
         case "l": snapTo(relativeYawDeg: 90)    // left
         case "v": cycleVehicle()                 // toggle vehicle
+        case "=", "+":                           // raise seat
+            seatHeight += seatStep
+            updateHeadingLabel(); draw()
+        case "-":                                // lower seat
+            seatHeight -= seatStep
+            updateHeadingLabel(); draw()
+        case "h":                                // reset seat to default
+            seatOffsetX = 0; seatOffsetZ = 0; seatHeight = 1.1
+            updateHeadingLabel(); draw()
         default: super.keyDown(with: event)
         }
     }
